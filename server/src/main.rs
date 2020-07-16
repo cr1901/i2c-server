@@ -6,12 +6,9 @@ use std::time::{Duration, SystemTime};
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::time::delay_for;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use std::io::BufWriter;
 
-use i2cdev::core::*;
 #[cfg(unix)]
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
@@ -31,16 +28,16 @@ async fn http_server(rx: Arc<Mutex<Vec<i16>>>) -> Result<(), Box<dyn std::error:
                     let new_rx = rx.clone();
 
                     tokio::spawn(async move {
-                        let (mut reader, mut writer) = socket.split();
+                        let temp_lock = new_rx.lock().await;
 
-                        match tokio::io::copy(&mut reader, &mut writer).await {
-                            Ok(amt) => {
-                                println!("wrote {} bytes", amt);
-                                println!("i2ctask: {}", new_rx.lock().await[0]);
-                            }
-                            Err(err) => {
-                                eprintln!("IO error {:?}", err);
-                            }
+                        let temp_data = {
+                            let temp_ptr = &**temp_lock as *const [i16] as *const i16 as *const u8;
+                            let temp_len = temp_lock.len();
+                            unsafe { std::slice::from_raw_parts(temp_ptr, temp_len * 2) }
+                        };
+
+                        for c in temp_data.chunks(512) {
+                            socket.write_all(c).await.unwrap();
                         }
                     });
                 }
@@ -92,10 +89,14 @@ async fn i2cfun(tx: Arc<Mutex<Vec<i16>>>) -> Result<(), ()> {
     let mut fake_temp : i16 = -1024;
 
     loop {
-        println!("i2c task");
+        let before = SystemTime::now();
+        thread::sleep(Duration::from_millis(1));
+        let now = SystemTime::now();
+
         let mut lock = tx.lock().await;
         lock[0] = fake_temp;
 
+        //println!("i2c task: {:?}", elapsed);
         delay_for(Duration::from_millis(1000)).await;
         fake_temp += 1;
     }
