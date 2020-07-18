@@ -8,14 +8,18 @@ use tokio::prelude::*;
 use tokio::time::delay_for;
 use tokio::sync::Mutex;
 use std::sync::Arc;
+use std::str;
+
+use base64::{encode_config_slice, URL_SAFE};
 
 #[cfg(unix)]
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
-
+#[cfg(unix)]
 const TEMP_SENSOR_ADDR: u16 = 0x48;
 
 async fn http_server(rx: Arc<Mutex<Vec<i16>>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut listener = TcpListener::bind("127.0.0.1:8000").await?;
+    let max_base64_size = rx.lock().await.capacity() * 4 / 3 + 4;
 
     let server = async move {
         let mut incoming = listener.incoming();
@@ -28,17 +32,24 @@ async fn http_server(rx: Arc<Mutex<Vec<i16>>>) -> Result<(), Box<dyn std::error:
                     let new_rx = rx.clone();
 
                     tokio::spawn(async move {
-                        let temp_lock = new_rx.lock().await;
+                        let mut payload = Vec::<u8>::with_capacity(max_base64_size);
+                        payload.resize(max_base64_size, 0);
 
-                        let temp_data = {
-                            let temp_ptr = &**temp_lock as *const [i16] as *const i16 as *const u8;
-                            let temp_len = temp_lock.len();
-                            unsafe { std::slice::from_raw_parts(temp_ptr, temp_len * 2) }
+                        let written = {
+                            let temp_lock = new_rx.lock().await;
+
+                            let temp_data = {
+                                let temp_ptr = &**temp_lock as *const [i16] as *const i16 as *const u8;
+                                let temp_len = temp_lock.len();
+                                unsafe { std::slice::from_raw_parts(temp_ptr, temp_len * 2) }
+                            };
+
+                            encode_config_slice(temp_data, URL_SAFE, &mut payload)
                         };
 
-                        for c in temp_data.chunks(512) {
-                            socket.write_all(c).await.unwrap();
-                        }
+                        payload.resize(written, 0);
+                        println!("{}", str::from_utf8(&payload).unwrap());
+                        socket.write_all(&payload).await.unwrap();
                     });
                 }
                 Err(err) => {
@@ -89,26 +100,22 @@ async fn i2cfun(tx: Arc<Mutex<Vec<i16>>>) -> Result<(), ()> {
     let mut fake_temp : i16 = -1024;
 
     loop {
-        let before = SystemTime::now();
         thread::sleep(Duration::from_millis(1));
-        let now = SystemTime::now();
-
         let mut lock = tx.lock().await;
-        lock[0] = fake_temp;
+        lock.push(fake_temp);
 
         //println!("i2c task: {:?}", elapsed);
         delay_for(Duration::from_millis(1000)).await;
         fake_temp += 1;
     }
+
     Ok(())
 }
 
 #[tokio::main]
 async fn main() {
-    let i2c_tx = Arc::new(Mutex::new(Vec::<i16>::with_capacity(1)));
+    let i2c_tx = Arc::new(Mutex::new(Vec::<i16>::with_capacity(1024)));
     let i2c_rx  = Arc::clone(&i2c_tx);
-
-    i2c_tx.lock().await.push(0);
 
     let (_, _) = tokio::join!(i2cfun(i2c_tx), http_server(i2c_rx));
 }

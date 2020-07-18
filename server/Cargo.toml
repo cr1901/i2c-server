@@ -11,3 +11,6 @@ i2cdev = "0.4.4"
 compress = { path = "../compress" }
 tokio = { version = "0.2", features = ["full"] }
 futures = "0.3"
+hyper = "0.13.7"
+slice-deque = "0.3.0"
+base64 = "0.12.3"
