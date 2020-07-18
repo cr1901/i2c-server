@@ -1,21 +1,16 @@
-extern crate i2cdev;
-
 use std::convert::Infallible;
 
-use futures::stream::StreamExt;
 use std::thread;
-use std::time::{Duration, SystemTime};
-use tokio::net::TcpListener;
-use tokio::prelude::*;
+use std::time::Duration;
 use tokio::time::delay_for;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use std::str;
 
 use base64::{encode_config_slice, URL_SAFE};
 use hyper::{Body, Method, Request, Response, StatusCode, Server};
 use hyper::service::{make_service_fn, service_fn};
 
+#[cfg(unix)]
 use i2cdev::core::*;
 #[cfg(unix)]
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
@@ -82,6 +77,10 @@ async fn i2cfun(tx: Arc<Mutex<Vec<i16>>>) -> Result<(), ()> {
         thread::sleep(Duration::from_millis(1));
         let mut lock = tx.lock().await;
         lock.push(fake_temp);
+
+        if lock.len() == lock.capacity() {
+            break;
+        }
 
         delay_for(Duration::from_millis(1000)).await;
         fake_temp += 1;
