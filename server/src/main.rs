@@ -7,6 +7,7 @@ use tokio::time::delay_for;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
+use clap::{Arg, ArgMatches, App, AppSettings, ArgGroup, SubCommand};
 use hyper::{Body, Method, Request, Response, StatusCode, Server};
 use hyper::service::{make_service_fn, service_fn};
 use serde_json;
@@ -78,9 +79,54 @@ async fn i2cfun(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
     Ok(())
 }
 
+fn parse_args<'a>() -> ArgMatches<'a> {
+    App::new("I2C Sensor Server")
+        .version("0.1")
+        .author("William D. Jones <thor0505@comcast.net>")
+        .about("Low speed I2C HTTP daemon")
+        .setting(AppSettings::SubcommandRequired)
+        .arg(Arg::with_name("sample_rate")
+            .help("Sample rate (Hz)")
+            .short("s")
+            .value_name("RATE")
+            .takes_value(true))
+        .subcommand(SubCommand::with_name("measure")
+            .about("Run the server and obtain data from I2C sensors (Unix only).")
+            .arg(Arg::with_name("replay")
+                .help("Write data to file for replay on exit (not implemented).")
+                .short("r")
+                .value_name("FILE")
+                .takes_value(true))
+            .arg(Arg::with_name("device")
+                .help("Device type to talk to (not implemented).")
+                .short("d")
+                .value_name("DEVICE")
+                .takes_value(true))
+            .arg(Arg::with_name("NODE")
+                .help("I2C device node")
+                .required(true)
+                .index(1))
+            .arg(Arg::with_name("ADDRESS")
+                .help("I2C device address")
+                .required(true)
+                .index(2)))
+        .subcommand(SubCommand::with_name("replay")
+            .about("Run the server with synthesized data from a file.")
+            .arg(Arg::with_name("synthesis")
+                .help("Synthesize fake data without a file.")
+                .short("s"))
+            .arg(Arg::with_name("file")
+                .help("Replay data file to read (not implemented).")
+                .index(1))
+            .group(ArgGroup::with_name("source")
+                    .args(&["file", "synthesis"])
+                    .required(true)))
+        .get_matches()
+}
 
 #[tokio::main]
 async fn main() {
+    let matches = parse_args();
     let i2c_tx = Arc::new(Mutex::new(SampleBuf::<i16>::new(86400, 1)));
     let i2c_rx  = Arc::clone(&i2c_tx);
 
