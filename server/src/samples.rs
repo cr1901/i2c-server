@@ -117,4 +117,6 @@ mod private {
     impl Sealed for i32 {}
     impl Sealed for i16 {}
     impl Sealed for i8 {}
+    impl Sealed for f64 {}
+    impl Sealed for f32 {}
 }

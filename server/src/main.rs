@@ -1,15 +1,16 @@
 use std::convert::Infallible;
 
+#[cfg(unix)]
+use std::path::Path;
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime};
-use tokio::time::delay_for;
 use tokio::sync::Mutex;
-use std::sync::Arc;
-use std::path::Path;
+use tokio::time::delay_for;
 
-use clap::{Arg, ArgMatches, App, AppSettings, ArgGroup, SubCommand};
-use hyper::{Body, Method, Request, Response, StatusCode, Server};
+use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde_json;
 
 mod samples;
@@ -20,13 +21,17 @@ use i2cdev::core::*;
 #[cfg(unix)]
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
-
-async fn temp_service(req: Request<Body>, rx: Arc<Mutex<SampleBuf<i16>>>) -> Result<Response<Body>, Infallible> {
+async fn temp_service(
+    req: Request<Body>,
+    rx: Arc<Mutex<SampleBuf<i16>>>,
+) -> Result<Response<Body>, Infallible> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             let sample_buf = rx.lock().await;
-            Ok(Response::new(Body::from(serde_json::to_string(&*sample_buf).unwrap())))
-        },
+            Ok(Response::new(Body::from(
+                serde_json::to_string(&*sample_buf).unwrap(),
+            )))
+        }
 
         _ => {
             let mut not_found = Response::default();
@@ -38,7 +43,10 @@ async fn temp_service(req: Request<Body>, rx: Arc<Mutex<SampleBuf<i16>>>) -> Res
 
 // real code should probably not use unwrap()
 #[cfg(unix)]
-async fn measure<P>(path: P, addr: u16, tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> where P : AsRef<Path> {
+async fn measure<P>(path: P, addr: u16, tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()>
+where
+    P: AsRef<Path>,
+{
     let mut dev = LinuxI2CDevice::new(path, addr).unwrap();
 
     dev.smbus_write_byte_data(0x01, 0x60).unwrap();
@@ -57,7 +65,7 @@ async fn measure<P>(path: P, addr: u16, tx: Arc<Mutex<SampleBuf<i16>>>) -> Resul
 }
 
 async fn replay_synthesize(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
-    let mut fake_temp : i16 = -1024;
+    let mut fake_temp: i16 = -1024;
 
     loop {
         let now = SystemTime::now();
@@ -82,46 +90,68 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .author("William D. Jones <thor0505@comcast.net>")
         .about("Low speed I2C HTTP daemon")
         .setting(AppSettings::SubcommandRequired)
-        .arg(Arg::with_name("sample_rate")
-            .help("Sample rate (Hz)")
-            .short("s")
-            .value_name("RATE")
-            .takes_value(true))
-        .arg(Arg::with_name("IP_ADDRESS")
-            .help("IP Address and Port")
-            .default_value("0.0.0.0:8000")
-            .index(1))
-        .subcommand(SubCommand::with_name("measure")
-            .about("Run the server and obtain data from I2C sensors (Unix only).")
-            .arg(Arg::with_name("replay")
-                .help("Write data to file for replay on exit (not implemented).")
-                .short("r")
-                .value_name("FILE")
-                .takes_value(true))
-            .arg(Arg::with_name("device")
-                .help("Device type to talk to (not implemented).")
-                .short("d")
-                .value_name("DEVICE")
-                .takes_value(true))
-            .arg(Arg::with_name("NODE")
-                .help("I2C device node")
-                .required(true)
-                .index(1))
-            .arg(Arg::with_name("I2C_ADDRESS")
-                .help("I2C device address")
-                .required(true)
-                .index(2)))
-        .subcommand(SubCommand::with_name("replay")
-            .about("Run the server with synthesized data from a file.")
-            .arg(Arg::with_name("synthesis")
-                .help("Synthesize fake data without a file.")
-                .short("s"))
-            .arg(Arg::with_name("file")
-                .help("Replay data file to read (not implemented).")
-                .index(1))
-            .group(ArgGroup::with_name("source")
-                    .args(&["file", "synthesis"])
-                    .required(true)))
+        .arg(
+            Arg::with_name("sample_rate")
+                .help("Sample rate (Hz)")
+                .short("s")
+                .value_name("RATE")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("IP_ADDRESS")
+                .help("IP Address and Port")
+                .default_value("0.0.0.0:8000")
+                .index(1),
+        )
+        .subcommand(
+            SubCommand::with_name("measure")
+                .about("Run the server and obtain data from I2C sensors (Unix only).")
+                .arg(
+                    Arg::with_name("replay")
+                        .help("Write data to file for replay on exit (not implemented).")
+                        .short("r")
+                        .value_name("FILE")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("device")
+                        .help("Device type to talk to (not implemented).")
+                        .short("d")
+                        .value_name("DEVICE")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("NODE")
+                        .help("I2C device node")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::with_name("I2C_ADDRESS")
+                        .help("I2C device address")
+                        .required(true)
+                        .index(2),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("replay")
+                .about("Run the server with synthesized data from a file.")
+                .arg(
+                    Arg::with_name("synthesis")
+                        .help("Synthesize fake data without a file.")
+                        .short("s"),
+                )
+                .arg(
+                    Arg::with_name("file")
+                        .help("Replay data file to read (not implemented).")
+                        .index(1),
+                )
+                .group(
+                    ArgGroup::with_name("source")
+                        .args(&["file", "synthesis"])
+                        .required(true),
+                ),
+        )
         .get_matches()
 }
 
@@ -130,16 +160,16 @@ async fn main() {
     let matches = parse_args();
 
     let i2c_tx = Arc::new(Mutex::new(SampleBuf::<i16>::new(86400, 1)));
-    let i2c_rx  = Arc::clone(&i2c_tx);
+    let i2c_rx = Arc::clone(&i2c_tx);
 
     let make_svc = make_service_fn(|_conn| {
-       let foo = Arc::clone(&i2c_rx);
+        let foo = Arc::clone(&i2c_rx);
 
-       async {
-           Ok::<_, Infallible>(service_fn(move |body: Request<Body>| {
-               temp_service(body, Arc::clone(&foo))
-           }))
-       }
+        async {
+            Ok::<_, Infallible>(service_fn(move |body: Request<Body>| {
+                temp_service(body, Arc::clone(&foo))
+            }))
+        }
     });
 
     let addr = matches.value_of("IP_ADDRESS").unwrap().parse().unwrap();
@@ -149,7 +179,8 @@ async fn main() {
         #[cfg(unix)]
         {
             let i2c_node = matches.value_of("NODE").unwrap();
-            let i2c_addr = u16::from_str_radix(matches.value_of("I2C_ADDRESS").unwrap(), 16).unwrap();
+            let i2c_addr =
+                u16::from_str_radix(matches.value_of("I2C_ADDRESS").unwrap(), 16).unwrap();
             let (_, _) = tokio::join!(measure(i2c_node, i2c_addr, i2c_tx), server);
         }
 
