@@ -4,3 +4,7 @@ members = [
     "compress",
     "client"
 ]
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
