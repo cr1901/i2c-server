@@ -7,9 +7,9 @@ use tokio::time::delay_for;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-use base64::{encode_config_slice, URL_SAFE};
 use hyper::{Body, Method, Request, Response, StatusCode, Server};
 use hyper::service::{make_service_fn, service_fn};
+use serde_json;
 
 mod samples;
 use samples::SampleBuf;
@@ -25,26 +25,8 @@ const TEMP_SENSOR_ADDR: u16 = 0x48;
 async fn temp_service(req: Request<Body>, rx: Arc<Mutex<SampleBuf<i16>>>) -> Result<Response<Body>, Infallible> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
-            let max_base64_size = rx.lock().await.capacity() * 4 / 3 + 4;
-            let mut payload = Vec::<u8>::with_capacity(max_base64_size);
-
-            payload.resize(max_base64_size, 0);
-
-            let written = {
-                let temp_lock = rx.lock().await;
-
-                let temp_data = {
-                    let temp_ptr = &**temp_lock as *const [i16] as *const i16 as *const u8;
-                    let temp_len = temp_lock.len();
-                    unsafe { std::slice::from_raw_parts(temp_ptr, temp_len * 2) }
-                };
-
-                encode_config_slice(temp_data, URL_SAFE, &mut payload)
-            };
-
-            payload.resize(written, 0);
-
-            Ok(Response::new(Body::from(payload)))
+            let sample_buf = rx.lock().await;
+            Ok(Response::new(Body::from(serde_json::to_string(&*sample_buf).unwrap())))
         },
 
         _ => {
@@ -83,7 +65,7 @@ async fn i2cfun(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
         let now = SystemTime::now();
         thread::sleep(Duration::from_millis(1));
         let mut lock = tx.lock().await;
-        lock.post(now, fake_temp).map_err(|_| ())?;
+        lock.post(now, fake_temp).expect("Fail!");
 
         if lock.len() == lock.capacity() {
             break;
