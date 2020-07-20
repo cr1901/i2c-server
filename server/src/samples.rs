@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::time::{SystemTime, Duration};
+use std::mem::size_of;
 
 use base64::{encode_config_slice, URL_SAFE};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeStruct};
@@ -86,7 +87,7 @@ impl<T> Serialize for SampleBuf<T> where T: private::Sealed {
 
         let byte_data = {
             let temp_ptr = &**self as *const [T] as *const T as *const u8;
-            unsafe { std::slice::from_raw_parts(temp_ptr, self.len() * 2) }
+            unsafe { std::slice::from_raw_parts(temp_ptr, self.len() * size_of::<T>()) }
         };
 
         let written = encode_config_slice(byte_data, URL_SAFE, &mut payload);
