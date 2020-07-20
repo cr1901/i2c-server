@@ -65,7 +65,7 @@ where
 }
 
 async fn replay_synthesize(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
-    let mut fake_temp: i16 = -1024;
+    let mut fake_temp: i16 = -2048;
 
     loop {
         let now = SystemTime::now();
@@ -79,6 +79,10 @@ async fn replay_synthesize(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
 
         delay_for(Duration::from_millis(1000)).await;
         fake_temp += 1;
+
+        if fake_temp == 2048 {
+            fake_temp = -2048
+        }
     }
 
     Ok(())
