@@ -25,7 +25,7 @@ def grab_data_file(in_fn):
 
 #%%
 def process_data(json_data, use_timestamp=False, windows=[15, 30, 60]):
-    temps_bytestr = base64.b64decode(json_data["buf"])
+    temps_bytestr = base64.b64decode(json_data["buf"], altchars="-_")
     temp = [(1.8*(t/16.0) + 32) for t in struct.unpack_from("<"+"h"*(len(temps_bytestr)//2), temps_bytestr)]
     time = [i for i in range(len(temp))]
 
