@@ -81,7 +81,8 @@ impl<T> Serialize for SampleBuf<T> where T: private::Sealed {
         state.serialize_field("timestamp", &self.timestamp)?;
         state.serialize_field("sample_rate", &self.sample_rate)?;
 
-        let max_base64_size = self.capacity() * 4 / 3 + 4;
+        let num_bytes = size_of::<T>() * self.capacity();
+        let max_base64_size = num_bytes * 4 / 3 + 4;
         let mut payload = Vec::<u8>::with_capacity(max_base64_size);
         payload.resize(max_base64_size, 0);
 
