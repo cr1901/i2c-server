@@ -1,6 +1,8 @@
 use std::ops::Deref;
 use std::time::{SystemTime, Duration};
 use std::mem::size_of;
+use std::error;
+use std::fmt;
 
 use base64::{encode_config_slice, URL_SAFE};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeStruct};
@@ -12,6 +14,11 @@ pub struct SampleBuf<T> {
     buf: SliceDeque<T>
 }
 
+#[derive(Debug)]
+pub enum Error {
+    BadDuration
+}
+
 impl<T> SampleBuf<T> {
     pub fn new(capacity : usize, sample_rate: u8) -> Self {
         SampleBuf {
@@ -21,14 +28,14 @@ impl<T> SampleBuf<T> {
         }
     }
 
-    pub fn post(&mut self, now: SystemTime, sample: T) -> Result<(), ()> {
+    pub fn post(&mut self, now: SystemTime, sample: T) -> Result<(), Error> {
         let prev_systime = SystemTime::UNIX_EPOCH + Duration::from_secs(self.timestamp);
 
         let leap_sec = match now.duration_since(prev_systime) {
             Ok(dur) => {
                 // Posting a new measurement does not support zero duration between
                 // measurements.
-                self.timestamp = now.duration_since(SystemTime::UNIX_EPOCH).map_err(|_| ())?.as_secs();
+                self.timestamp = now.duration_since(SystemTime::UNIX_EPOCH).map_err(|_| Error::BadDuration)?.as_secs();
                 dur == Duration::new(0, 0)
             },
             Err(_e) => {
@@ -100,6 +107,14 @@ impl<T> Serialize for SampleBuf<T> where T: private::Sealed {
         state.end()
     }
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Could not operate on sample buffer")
+    }
+}
+
+impl error::Error for Error {}
 
 mod private {
     pub trait Sealed {}

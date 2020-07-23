@@ -5,10 +5,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime};
+
 use tokio::sync::Mutex;
 use tokio::time::delay_for;
 
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
+use eyre::Result;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde_json;
@@ -24,12 +26,12 @@ use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 async fn temp_service(
     req: Request<Body>,
     rx: Arc<Mutex<SampleBuf<i16>>>,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Body>> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             let sample_buf = rx.lock().await;
             Ok(Response::new(Body::from(
-                serde_json::to_string(&*sample_buf).unwrap(),
+                serde_json::to_string(&*sample_buf)?,
             )))
         }
 
@@ -41,30 +43,29 @@ async fn temp_service(
     }
 }
 
-// real code should probably not use unwrap()
 #[cfg(unix)]
-async fn measure<P>(path: P, addr: u16, tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()>
+async fn measure<P>(path: P, addr: u16, tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    let mut dev = LinuxI2CDevice::new(path, addr).unwrap();
+    let mut dev = LinuxI2CDevice::new(path, addr)?;
 
-    dev.smbus_write_byte_data(0x01, 0x60).unwrap();
+    dev.smbus_write_byte_data(0x01, 0x60)?;
 
     loop {
         let now = SystemTime::now();
 
         // Measured: takes approx 1 millisecond.
-        let raw = i16::from_be(dev.smbus_read_word_data(0x00).unwrap() as i16) >> 4;
+        let raw = i16::from_be(dev.smbus_read_word_data(0x00)? as i16) >> 4;
 
         let mut lock = tx.lock().await;
-        lock.post(now, raw).map_err(|_| ())?;
+        lock.post(now, raw)?;
 
         delay_for(Duration::from_millis(1000)).await;
     }
 }
 
-async fn replay_synthesize(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<(), ()> {
+async fn replay_synthesize(tx: Arc<Mutex<SampleBuf<i16>>>) -> Result<()> {
     let mut fake_temp: i16 = -2048;
 
     loop {
@@ -160,7 +161,7 @@ fn parse_args<'a>() -> ArgMatches<'a> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let matches = parse_args();
 
     let i2c_tx = Arc::new(Mutex::new(SampleBuf::<i16>::new(86400, 1)));
@@ -176,7 +177,7 @@ async fn main() {
         }
     });
 
-    let addr = matches.value_of("IP_ADDRESS").unwrap().parse().unwrap();
+    let addr = matches.value_of("IP_ADDRESS").unwrap().parse()?;
     let server = Server::bind(&addr).serve(make_svc);
 
     if let Some(matches) = matches.subcommand_matches("measure") {
@@ -184,7 +185,7 @@ async fn main() {
         {
             let i2c_node = matches.value_of("NODE").unwrap();
             let i2c_addr =
-                u16::from_str_radix(matches.value_of("I2C_ADDRESS").unwrap(), 16).unwrap();
+                u16::from_str_radix(matches.value_of("I2C_ADDRESS").unwrap(), 16)?;
             let (_, _) = tokio::join!(measure(i2c_node, i2c_addr, i2c_tx), server);
         }
 
@@ -198,4 +199,6 @@ async fn main() {
             println!("Replay from file not yet implemented.");
         }
     }
+
+    Ok(())
 }
