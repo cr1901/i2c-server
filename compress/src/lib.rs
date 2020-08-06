@@ -68,17 +68,6 @@ pub fn encode_stream<'a, 'b>(
     while let Some((next, rest)) = values.split_first() {
         let buf_len = buf.len();
 
-        if buf_len <= cursor {
-            break;
-        }
-        if *next == 0 {
-            buf.set(cursor, false);
-            cursor += 1;
-            last = Some(0);
-            values = rest;
-            continue;
-        }
-
         if buf_len <= cursor + 15 {
             break;
         }
@@ -89,6 +78,7 @@ pub fn encode_stream<'a, 'b>(
         let (bits, pkt) = compress_entry(entry);
         buf[cursor..][..bits].clone_from_bitslice(&pkt[..bits]);
 
+        last = Some(*next);
         cursor += bits;
         values = rest;
     }
@@ -113,17 +103,6 @@ pub fn decode_stream<'a, 'b>(
 
     for slot in values.iter_mut() {
         let data_len = data.len();
-
-        if data_len < 1 {
-            break;
-        }
-        if !data[0] {
-            *slot = 0;
-            data = &data[1..];
-            last = Some(0);
-            cursor += 1;
-            continue;
-        }
 
         if data_len < 15 {
             break;
@@ -262,7 +241,7 @@ mod tests {
 
     #[test]
     fn encode_values() {
-        let values = [1500, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500];
+        let values = [1500, 0, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500, 500];
         let mut buf = bitarr![Msb0, u8; 0; 256];
         let (_, buf_slice) = buf.as_mut_bitslice().split_at_mut(0);
         let (unencoded, stream, empty) = compress::encode_stream(&values, buf_slice);
@@ -272,22 +251,28 @@ mod tests {
             bits![Msb0, u8;
                 // item: 1500
                 1, 1, 0, /**/ 0, 1, 0, 1, /**/ 1, 1, 0, 1, /**/ 1, 1, 0, 0,
-                // zero
+                // diff: -1500
+                1, 1, 1, /**/ 1, 0, 1, 0, /**/ 0, 0, 1, 0, /**/ 0, 1, 0, 0,
+                // zero diff
                 0,
                 // incr
                 1, 0, 0,
-                // zero
-                0,
+                // decr
+                1, 0, 1,
                 // decr
                 1, 0, 1,
                 // diff: 1001
                 1, 1, 1, /**/ 0, 0, 1, 1, /**/ 1, 1, 1, 0, /**/ 1, 0, 0, 1,
+                // incr
+                1, 0, 0,
                 // decr
                 1, 0, 1,
                 // decr
                 1, 0, 1,
                 // diff: -499
                 1, 1, 1, /**/ 1, 1, 1, 0, /**/ 0, 0, 0, 0, /**/ 1, 1, 0, 1,
+                // zero diff
+                0,
             ]
         );
     }
