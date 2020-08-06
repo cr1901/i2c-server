@@ -1,10 +1,15 @@
 #![no_std]
 
 use bitvec::prelude::*;
-
 // mod stream;
 
-// 0 = Zero change
+// Data entries are stored most significant bit first, most significant byte first, prefix-first.
+// This corresponds how each value is written in the below spec from left to right. Easier to
+// debug this way.
+// Using "diff of +3 from the previous measurement" beginning on a byte boundary as an example:
+// When the data in a hex editor, you'll see, for instance: 1110 0000 0000 011x, or E0 06/7.
+//
+// 0   Zero change
 // 100 +1 change
 // 101 -1 change
 // 110 xxxxxxxxxxxx 12 bit absolute
@@ -26,7 +31,7 @@ pub enum EntryType {
 
 #[repr(u8)]
 pub enum Opcode {
-    /// The measurement is zero.
+    /// The measurement is the same as the previous measurement.
     Zero = 0b000,
     /// The measurement is one greater than the previous.
     Incr = 0b100,
@@ -197,46 +202,34 @@ mod tests {
     use crate as compress;
     use bitvec::prelude::*;
 
-    // #[test]
-    // fn test_zero() {
-    //     // assert_eq!(compress::compress_entry(compress::EntryType::Diff((1023, 1023))), (1, bitarr![Msb0, u8; 0; 16]));
-    //     // assert_eq!(compress::compress_entry(compress::EntryType::Diff((1023, 1023))), (1, bitarr![Lsb0, u8; 0; 16]));
-    // }
-    //
-    // #[test]
-    // fn test_delta1() {
-    //     let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1022)));
-    //     assert_eq!((s, b.load::<u16>()), (3, 0b10000000));
-    //     let (s, b) = compress::compress_entry(compress::EntryType::Diff((1022, 1023)));
-    //     assert_eq!((s, b.load::<u16>()), (3, 0b10100000));
-    // }
+    #[test]
+    fn test_zero() {
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1023)));
+        assert_eq!((s, b.unwrap()), (1, [0, 0]));
+    }
+
+    #[test]
+    fn test_delta1() {
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1022)));
+        assert_eq!((s, b.unwrap()), (3, [0b10000000, 0]));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1022, 1023)));
+        assert_eq!((s, b.unwrap()), (3, [0b10100000, 0]));
+    }
 
     #[test]
     fn test_delta12() {
-        // 111 sxxxxxxxxxxx 12 bit delta
-        // I wanted bits stored in the above order (MSbit to LSbit in each byte):
-        // High bit of                                                   Low bit of
-        // Low byte => p2.p1.p0.s.x10.x9.x8.x7_x6.x5.x4.x3.x2.x1.x0.e <= High byte
-        // e for "extra" bit to make 16-bits. The next data begins at "e".
-        //
-        // Why do I want the data to be stored like this?
-        // So when read I read the data in a hex editor, you see: 1110 0000 0000 011x, or E0 06/7.
-        // This corresponds how the value is written in the spec from left to right! Easier to
-        // debug this way.
-        //
-        // Lsb0 order seems to be:
-        // High bit of                                                   Low bit of
-        // Low byte => x4.x3.x2.x1.x0.p2.p1.p0_e.s.x10.x9.x8.x7.x6.x5 <= High byte
-        // "e" is a sign extension.
-        //
-        // Msb0 order seems to be- no idea, doesn't make sense to me...
-
         // 3 Delta
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1020)));
         assert_eq!((s, b.unwrap()), (15, [0b11100000, 0b00000110]));
         // -3 Delta
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1020, 1023)));
         assert_eq!((s, b.unwrap()), (15, [0b11111111, 0b11111010]));
+    }
+
+    #[test]
+    fn test_item() {
+        let (s, b) = compress::compress_entry(compress::EntryType::Absolute(1));
+        assert_eq!((s, b.unwrap()), (15, [0b11000000, 0b00000010]));
     }
 
     #[test]
@@ -275,5 +268,39 @@ mod tests {
                 0,
             ]
         );
+    }
+
+    #[test]
+    fn decode_values() {
+        let bits = bits![Msb0, u8;
+            // item: 1500
+            1, 1, 0, /**/ 0, 1, 0, 1, /**/ 1, 1, 0, 1, /**/ 1, 1, 0, 0,
+            // diff: -1500
+            1, 1, 1, /**/ 1, 0, 1, 0, /**/ 0, 0, 1, 0, /**/ 0, 1, 0, 0,
+            // zero diff
+            0,
+            // incr
+            1, 0, 0,
+            // decr
+            1, 0, 1,
+            // decr
+            1, 0, 1,
+            // diff: 1001
+            1, 1, 1, /**/ 0, 0, 1, 1, /**/ 1, 1, 1, 0, /**/ 1, 0, 0, 1,
+            // incr
+            1, 0, 0,
+            // decr
+            1, 0, 1,
+            // decr
+            1, 0, 1,
+            // diff: -499
+            1, 1, 1, /**/ 1, 1, 1, 0, /**/ 0, 0, 0, 0, /**/ 1, 1, 0, 1,
+            // zero diff
+            0,
+        ];
+        let mut buf = [0; 12];
+        let (undecoded, stream, empty) = compress::decode_stream(&bits, &mut buf);
+        assert!(undecoded.is_empty());
+        assert_eq!(stream, [1500, 0, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500, 500]);
     }
 }
