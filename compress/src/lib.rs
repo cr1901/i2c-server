@@ -1,8 +1,8 @@
 #![no_std]
-use bitvec::array::BitArray;
+
 use bitvec::prelude::*;
 
-mod stream;
+// mod stream;
 
 // 0 = Zero change
 // 100 +1 change
@@ -15,6 +15,8 @@ mod stream;
 // 111 000000000000 Equivalent to 0. Reserved. Probably "long term jitter error".
 // 111 111111111111 Equivalent to 101. Reserved. Probably "user event".
 
+pub type Packet = BitArray<Msb0, [u8; 2]>;
+
 pub enum EntryType {
     Diff((i16, i16)),
     Absolute(i16),
@@ -22,45 +24,151 @@ pub enum EntryType {
     Reserved(i16),
 }
 
-mod entry_prefix {
-    pub const ZERO: u8 = 0;
-    pub const DELTA_1: u8 = 2;
-    pub const ABS: u8 = 6;
-    pub const DELTA_12: u8 = 7;
-    pub const RESERVED: u8 = 7;
+#[repr(u8)]
+pub enum Opcode {
+    /// The measurement is zero.
+    Zero = 0b000,
+    /// The measurement is one greater than the previous.
+    Incr = 0b100,
+    /// The measurement is one lesser than the previous.
+    Decr = 0b101,
+    /// The measurement is this payload.
+    Item = 0b110,
+    /// The measurement is the previous plus this payload.
+    Diff = 0b111,
 }
 
-pub fn compress<O>(in_buf: &[i16], out_buf: &mut BitSlice<O, u8>, start_implied: bool)
-where
-    O: BitOrder,
-{
-    todo!()
-    // let entries = if start_implied {
-    //     // (curr, tmp) = in_buf.split_at(1);
-    //     // tmp
-    //      // = in_buf.0;
-    // } else {
-    //     // in_buf
-    // };
-    //
-    // for entry in entries {
-    //     // match entry {
-    //     //
-    //     // }
-    // }
+impl From<u8> for Opcode {
+    fn from(val: u8) -> Self {
+        match val {
+            v if v == Self::Zero as u8 => Self::Zero,
+            v if v == Self::Incr as u8 => Self::Incr,
+            v if v == Self::Decr as u8 => Self::Decr,
+            v if v == Self::Item as u8 => Self::Item,
+            v if v == Self::Diff as u8 => Self::Diff,
+            v => panic!("Don't send bad opcodes! {}", v),
+        }
+    }
 }
 
-pub fn decompress() {
-    todo!()
+pub fn encode_stream<'a, 'b>(
+    mut values: &'a [i16],
+    buf: &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
+) -> (
+    //  Measurements not serialized
+    &'a [i16],
+    //  Datastream for transport
+    &'b BitSlice<Msb0, <u8 as BitStore>::Alias>,
+    //  Unused datastream
+    &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
+) {
+    let mut cursor = 0;
+    let mut last = None;
+
+    while let Some((next, rest)) = values.split_first() {
+        let buf_len = buf.len();
+
+        if buf_len <= cursor {
+            break;
+        }
+        if *next == 0 {
+            buf.set(cursor, false);
+            cursor += 1;
+            last = Some(0);
+            values = rest;
+            continue;
+        }
+
+        if buf_len <= cursor + 15 {
+            break;
+        }
+        let entry = match last {
+            None => EntryType::Absolute(*next),
+            Some(last) => EntryType::Diff((*next, last)),
+        };
+        let (bits, pkt) = compress_entry(entry);
+        buf[cursor..][..bits].clone_from_bitslice(&pkt[..bits]);
+
+        cursor += bits;
+        values = rest;
+    }
+
+    let (written, rest) = buf.split_at_aliased_mut(cursor);
+    (values, &*written, rest)
 }
 
-fn compress_entry<O>(entry: EntryType) -> (usize, BitArray<O, [u8; 2]>)
-where
-    O: BitOrder,
-    BitSlice<O, u8>: BitField,
-    // BitSlice<O, u8>: BitField + IndexMut<usize>, Eeep! 25 Errors!
-{
-    let mut out = BitArray::zeroed();
+pub fn decode_stream<'a, 'b>(
+    mut data: &'a BitSlice<Msb0, u8>,
+    values: &'b mut [i16],
+) -> (
+    //  Datastream not parsed
+    &'a BitSlice<Msb0, u8>,
+    //  Measurements deserialized
+    &'b [i16],
+    //  Unused measurements
+    &'b mut [i16],
+) {
+    let mut cursor = 0;
+    let mut last = None;
+
+    for slot in values.iter_mut() {
+        let data_len = data.len();
+
+        if data_len < 1 {
+            break;
+        }
+        if !data[0] {
+            *slot = 0;
+            data = &data[1..];
+            last = Some(0);
+            cursor += 1;
+            continue;
+        }
+
+        if data_len < 15 {
+            break;
+        }
+        match data[..3].load::<u8>().into() {
+            Opcode::Incr => {
+                let mut prev = last.take().unwrap_or_default();
+                prev += 1;
+                last = Some(prev);
+                *slot = prev;
+                data = &data[3..];
+            }
+            Opcode::Decr => {
+                let mut prev = last.take().unwrap_or_default();
+                prev -= 1;
+                last = Some(prev);
+                *slot = prev;
+                data = &data[3..];
+            }
+            Opcode::Item => {
+                let val = data[3..15].load_be::<u16>() as i16;
+                last = Some(val);
+                *slot = val;
+                data = &data[15..];
+            }
+            Opcode::Diff => {
+                let diff = data[3..15].load_be::<u16>() as i16;
+                let prev = last.take().unwrap_or_default();
+                let next = prev + diff;
+                last = Some(next);
+                *slot = next;
+                data = &data[15..];
+            }
+            Opcode::Zero => unreachable!("Handled earlier"),
+        }
+
+        cursor += 1;
+    }
+
+    let (read, rest) = values.split_at_mut(cursor);
+    (data, &*read, rest)
+}
+
+fn compress_entry(entry: EntryType) -> (usize, Packet) {
+    let mut out = Packet::zeroed();
 
     match entry {
         EntryType::Diff((curr, prev)) => {
@@ -68,47 +176,40 @@ where
 
             match diff {
                 0 => {
-                    out[0..1].store(entry_prefix::ZERO);
-                    (1usize, out)
-                },
+                    out[..3].store(Opcode::Zero as u8);
+                    (1, out)
+                }
                 1 => {
-                    out[..2].store(entry_prefix::DELTA_1);
-                    out[2..3].store(0u16);
-                    (3usize, out)
-                },
+                    out[..3].store(Opcode::Incr as u8);
+                    (3, out)
+                }
                 -1 => {
-                    out[..2].store(entry_prefix::DELTA_1);
-                    out[2..3].store(1u16);
-                    (3usize, out)
+                    out[..3].store(Opcode::Decr as u8);
+                    (3, out)
                 }
                 d if d > -2048 && d < 2048 => {
-                    out[0..3].store(entry_prefix::DELTA_12);
-                    out[3..16].store(d as u16);
-                    (15usize, out)
-                },
-                _ => panic!("Difference between consecutive measurements exceeds 2048.")
+                    out[..3].store(Opcode::Diff as u8);
+                    out[3..15].store_be(d as u16);
+                    (15, out)
+                }
+                _ => panic!("Difference between consecutive measurements exceeds 2048."),
             }
         }
         EntryType::Absolute(val) => {
-            out[..3].store(entry_prefix::ABS);
-            out[3..16].store(val as u16);
-            (15usize, out)
+            out[..3].store(Opcode::Item as u8);
+            out[3..15].store_be(val as u16);
+            (15, out)
         }
-        EntryType::NoMeasurement => {
-            out[..3].store(entry_prefix::RESERVED);
-            out[3..16].store(-2048i16 as u16);
-            (15usize, out)
-        }
+        EntryType::NoMeasurement => (15, Packet::new([0xF0, 0])),
         EntryType::Reserved(val) => {
             if val >= -1 && val < 2 {
-                out[..3].store(entry_prefix::RESERVED);
-                out[3..16].store(val as u16);
+                out[..3].store(Opcode::Diff as u8);
+                out[3..15].store(val as u16);
             } else {
                 panic!("Reserved value out of range.")
             }
-            (15usize, out)
+            (15, out)
         }
-        _ => todo!(),
     }
 }
 
@@ -152,16 +253,42 @@ mod tests {
         // Msb0 order seems to be- no idea, doesn't make sense to me...
 
         // 3 Delta
-        let (s, b) = compress::compress_entry::<Lsb0>(compress::EntryType::Diff((1023, 1020)));
-        assert_eq!((s, b.load::<u16>()), (15, 0b00000000_00011111));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1020)));
+        assert_eq!((s, b.unwrap()), (15, [0b11100000, 0b00000110]));
         // -3 Delta
-        let (s, b) = compress::compress_entry::<Lsb0>(compress::EntryType::Diff((1020, 1023)));
-        assert_eq!((s, b.load::<u16>()), (15, 0b11111111_11101111));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1020, 1023)));
+        assert_eq!((s, b.unwrap()), (15, [0b11111111, 0b11111010]));
+    }
 
-
-        let (s, b) = compress::compress_entry::<Msb0>(compress::EntryType::Diff((1023, 1020)));
-        assert_eq!((s, b.load::<u16>()), (15, 0b00000000_11100011));
-        let (s, b) = compress::compress_entry::<Msb0>(compress::EntryType::Diff((1020, 1023)));
-        assert_eq!((s, b.load::<u16>()), (15, 0b11111111_11111101));
+    #[test]
+    fn encode_values() {
+        let values = [1500, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500];
+        let mut buf = bitarr![Msb0, u8; 0; 256];
+        let (_, buf_slice) = buf.as_mut_bitslice().split_at_mut(0);
+        let (unencoded, stream, empty) = compress::encode_stream(&values, buf_slice);
+        assert!(unencoded.is_empty());
+        assert_eq!(
+            stream,
+            bits![Msb0, u8;
+                // item: 1500
+                1, 1, 0, /**/ 0, 1, 0, 1, /**/ 1, 1, 0, 1, /**/ 1, 1, 0, 0,
+                // zero
+                0,
+                // incr
+                1, 0, 0,
+                // zero
+                0,
+                // decr
+                1, 0, 1,
+                // diff: 1001
+                1, 1, 1, /**/ 0, 0, 1, 1, /**/ 1, 1, 1, 0, /**/ 1, 0, 0, 1,
+                // decr
+                1, 0, 1,
+                // decr
+                1, 0, 1,
+                // diff: -499
+                1, 1, 1, /**/ 1, 1, 1, 0, /**/ 0, 0, 0, 0, /**/ 1, 1, 0, 1,
+            ]
+        );
     }
 }
