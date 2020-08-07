@@ -1,25 +1,8 @@
-
+//! Compression library for low-speed I2C sensors.
 #![no_std]
 
 use bitvec::prelude::*;
 // mod stream;
-
-// Data entries are stored most significant bit first, most significant byte first, prefix-first.
-// This corresponds how each value is written in the below spec from left to right. Easier to
-// debug this way.
-// Using "diff of +3 from the previous measurement" beginning on a byte boundary as an example:
-// When the data in a hex editor, you'll see, for instance: 1110 0000 0000 011x, or E0 06/7.
-//
-// 0   Zero change
-// 100 +1 change
-// 101 -1 change
-// 110 xxxxxxxxxxxx 12 bit absolute
-// 111 sxxxxxxxxxxx 12 bit delta (except for values described below)
-// Niche-filling:
-// 111 100000000000 Impossible delta with 12-bit sensor. No value/no measurement taken this sample.
-// 111 000000000001 Equivalent to 100. Reserved. Probably "clock went backwards".
-// 111 000000000000 Equivalent to 0. Reserved. Probably "long term jitter error".
-// 111 111111111111 Equivalent to 101. Reserved. Probably "user event".
 
 pub type Packet = BitArray<Msb0, [u8; 2]>;
 
