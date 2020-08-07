@@ -2,7 +2,8 @@
 members = [
     "server",
     "compress",
-    "client"
+    "client",
+    "tcn75a"
 ]
 
 [profile.release]
