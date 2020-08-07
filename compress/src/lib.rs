@@ -109,10 +109,20 @@ pub fn decode_stream<'a, 'b>(
     for slot in values.iter_mut() {
         let data_len = data.len();
 
+        if data_len < 1 {
+            break;
+        }
+        if !data[0] {
+            *slot = last.take().unwrap_or_default();
+            data = &data[1..];
+            cursor += 1;
+            continue;
+        }
+
         if data_len < 15 {
             break;
         }
-        match data[..3].load::<u8>().into() {
+        match data[..3].load_be::<u8>().into() {
             Opcode::Incr => {
                 let mut prev = last.take().unwrap_or_default();
                 prev += 1;
@@ -128,13 +138,23 @@ pub fn decode_stream<'a, 'b>(
                 data = &data[3..];
             }
             Opcode::Item => {
-                let val = data[3..15].load_be::<u16>() as i16;
+                let val = if data[3] {
+                    (data[3..15].load_be::<u16>() as i16) - 0x1000
+                } else {
+                    (data[3..15].load_be::<u16>() as i16)
+                };
+
                 last = Some(val);
                 *slot = val;
                 data = &data[15..];
             }
             Opcode::Diff => {
-                let diff = data[3..15].load_be::<u16>() as i16;
+                let diff = if data[3] {
+                    (data[3..15].load_be::<u16>() as i16) - 0x1000
+                } else {
+                    (data[3..15].load_be::<u16>() as i16)
+                };
+
                 let prev = last.take().unwrap_or_default();
                 let next = prev + diff;
                 last = Some(next);
