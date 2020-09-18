@@ -23,14 +23,32 @@ where
 
         ConfigRegProxy {
             val: self.val | rhs_proxy.val,
-            mask: self.mask | rhs_proxy.mask
+            mask: self.mask | rhs_proxy.mask,
         }
-        // Was a typo, but weirdly enough doesn't compile...
-        // ConfigReg(self.into().0 | rhs.into().0)
+
+        // Was a typo, but weirdly enough doesn't compile... errors with:
+        // cannot infer type for type parameter `T`
+        // ConfigRegProxy {
+        //     val: self.into().val | rhs_proxy.val,
+        //     mask: self.into().mask | rhs_proxy.mask
+        // }
     }
 }
 
-pub trait ConfigRegField : private::Sealed + Into<u8> {
+// impl for ConfigRegProxy, which includes mask info
+impl<T> From<T> for ConfigRegProxy
+where
+    T: ConfigRegField,
+{
+    fn from(field: T) -> Self {
+        ConfigRegProxy {
+            val: field.val(),
+            mask: T::mask(),
+        }
+    }
+}
+
+pub trait ConfigRegField: private::Sealed + Into<u8> {
     // Use associated const to get the mask.
     const WIDTH: u8;
     const OFFSET: u8;
@@ -44,131 +62,47 @@ pub trait ConfigRegField : private::Sealed + Into<u8> {
     }
 }
 
-// impl for ConfigRegProxy, which includes mask info
-impl<T> From<T> for ConfigRegProxy
-where
-    T: ConfigRegField,
-{
-    fn from(field: T) -> Self {
-        ConfigRegProxy {
-            val: field.val(),
-            mask: T::mask()
+macro_rules! impl_field {
+    ( $type:ident, $width:expr, $offset:expr, $first:ident $(, $subseq:ident )* ) => {
+        #[repr(u8)]
+        pub enum $type {
+            $first = 0,
+            $(
+                $subseq
+            ),*
+        }
+
+        impl ConfigRegField for $type {
+            const WIDTH: u8 = $width;
+            const OFFSET: u8 = $offset;
+        }
+
+        impl From<$type> for u8
+        {
+            fn from(field: $type) -> u8 {
+                field as u8
+            }
+        }
+
+        impl<T> BitOr<T> for $type where T: ConfigRegField {
+            type Output = ConfigRegProxy;
+
+            fn bitor(self, rhs: T) -> Self::Output {
+                ConfigRegProxy {
+                    val: self.val() | rhs.val(),
+                    mask: Self::mask() | T::mask()
+                }
+            }
         }
     }
 }
 
-#[repr(u8)]
-pub enum OneShot {
-    Enabled,
-    Disabled,
-}
-
-#[repr(u8)]
-pub enum Resolution {
-    Bits9,
-    Bits10,
-    Bits11,
-    Bits12,
-}
-
-#[repr(u8)]
-pub enum FaultQueue {
-    One,
-    Two,
-    Four,
-    Six,
-}
-
-#[repr(u8)]
-pub enum AlertPolarity {
-    ActiveHigh,
-    ActiveLow,
-}
-
-#[repr(u8)]
-pub enum CompInt {
-    Comparator,
-    Interrupt,
-}
-
-#[repr(u8)]
-pub enum Shutdown {
-    Disable,
-    Enable,
-}
-
-impl ConfigRegField for OneShot {
-    const WIDTH: u8 = 1;
-    const OFFSET: u8 = 7;
-}
-
-impl ConfigRegField for Resolution {
-    const WIDTH: u8 = 2;
-    const OFFSET: u8 = 5;
-}
-
-impl ConfigRegField for FaultQueue {
-    const WIDTH: u8 = 2;
-    const OFFSET: u8 = 3;
-}
-
-impl ConfigRegField for AlertPolarity {
-    const WIDTH: u8 = 1;
-    const OFFSET: u8 = 2;
-}
-
-impl ConfigRegField for CompInt {
-    const WIDTH: u8 = 1;
-    const OFFSET: u8 = 1;
-}
-
-impl ConfigRegField for Shutdown {
-    const WIDTH: u8 = 1;
-    const OFFSET: u8 = 0;
-}
-
-impl From<OneShot> for u8
-{
-    fn from(field: OneShot) -> u8 {
-        field as u8
-    }
-}
-
-impl From<Resolution> for u8
-{
-    fn from(field: Resolution) -> u8 {
-        field as u8
-    }
-}
-
-impl From<FaultQueue> for u8
-{
-    fn from(field: FaultQueue) -> u8 {
-        field as u8
-    }
-}
-
-impl From<AlertPolarity> for u8
-{
-    fn from(field: AlertPolarity) -> u8 {
-        field as u8
-    }
-}
-
-impl From<CompInt> for u8
-{
-    fn from(field: CompInt) -> u8 {
-        field as u8
-    }
-}
-
-impl From<Shutdown> for u8
-{
-    fn from(field: Shutdown) -> u8 {
-        field as u8
-    }
-}
-
+impl_field!(OneShot, 1, 7, Disabled, Enabled);
+impl_field!(Resolution, 2, 5, Bits9, Bits10, Bits11, Bits12);
+impl_field!(FaultQueue, 2, 3, One, Two, Four, Six);
+impl_field!(AlertPolarity, 1, 2, ActiveLow, ActiveHigh);
+impl_field!(CompInt, 1, 1, Comparator, Interrupt);
+impl_field!(Shutdown, 1, 0, Disable, Enable);
 
 mod private {
     pub trait Sealed {}
@@ -187,9 +121,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mask() {
-        let proxy = Shutdown | CompInt;
+    fn test_val_and_mask() {
+        let proxy = Shutdown::Disable | CompInt::Interrupt;
 
+        assert_eq!(proxy.val, 0b0000010);
         assert_eq!(proxy.mask, 0b00000011);
+    }
+
+    #[test]
+    fn test_2bit_val() {
+        let proxy: ConfigRegProxy = Resolution::Bits12.into();
+
+        assert_eq!(proxy.val, 0b01100000);
+        assert_eq!(proxy.mask, 0b01100000);
+    }
+
+    #[test]
+    fn test_reset_defaults() {
+        let proxy = OneShot::Disabled
+            | Resolution::Bits9
+            | FaultQueue::One
+            | AlertPolarity::ActiveLow
+            | CompInt::Comparator
+            | Shutdown::Disable;
+
+        assert_eq!(proxy.val, 0);
+        assert_eq!(proxy.mask, 0b11111111);
     }
 }
