@@ -12,6 +12,7 @@ where
 {
     ctx: T,
     address: u8,
+    reg: Option<u8>,
 }
 
 #[allow(dead_code)]
@@ -25,13 +26,25 @@ where
     T: Read + Write + WriteRead,
 {
     pub fn new(ctx: T, address: u8) -> Self {
-        Tcn75a { ctx, address }
+        Tcn75a { ctx, address, reg: None }
     }
 
     fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
+        if let Some(curr) = self.reg {
+            if curr == ptr {
+                return Ok(())
+            }
+        }
+
         match self.ctx.try_write(self.address, &ptr.to_le_bytes()) {
-            Ok(_) => Ok(()),
-            Err(_e) => Err(()),
+            Ok(_) => {
+                self.reg = Some(ptr);
+                Ok(())
+            },
+            Err(_e) => {
+                self.reg = None;
+                Err(())
+            }
         }
     }
 
