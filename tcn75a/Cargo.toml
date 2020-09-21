@@ -8,3 +8,8 @@ edition = "2018"
 
 [dependencies]
 embedded-hal = "1.0.0-alpha.1"
+
+[dev-dependencies.embedded-hal-mock]
+version = "0.8.0"
+git = "https://github.com/eldruin/embedded-hal-mock"
+branch = "embedded-hal-1.0.0-alpha"

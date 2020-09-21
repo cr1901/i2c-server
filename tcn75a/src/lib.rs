@@ -27,8 +27,11 @@ where
         Tcn75a { ctx, address }
     }
 
-    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
-        todo!()
+    fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
+        match self.ctx.try_write(self.address, &ptr.to_le_bytes()) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(()),
+        }
     }
 
     pub fn temperature(&mut self) -> Result<i16, ()> {
@@ -68,8 +71,23 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::vec;
+
+    use super::{Read, Write, WriteRead, Tcn75a};
+    use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_reg_ptr() {
+        let expectations = [
+            I2cTransaction::write(0x48, vec![0]),
+            I2cTransaction::write(0x48, vec![3])
+        ];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut tcn = Tcn75a::new(i2c, 0x48);
+
+        assert_eq!(tcn.set_reg_ptr(0), Ok(()));
+        assert_eq!(tcn.set_reg_ptr(3), Ok(()));
     }
 }
