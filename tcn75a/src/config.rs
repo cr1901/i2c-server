@@ -7,7 +7,8 @@ pub struct ConfigRegProxy {
 }
 
 impl ConfigRegProxy {
-    pub(crate) fn modify(self, old: ConfigReg) -> ConfigReg {
+    #[allow(dead_code)]
+    pub(crate) fn modify(self, _old: ConfigReg) -> ConfigReg {
         todo!()
     }
 }

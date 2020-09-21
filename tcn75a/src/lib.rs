@@ -14,6 +14,7 @@ where
     address: u8,
 }
 
+#[allow(dead_code)]
 enum TempReadError<E> {
     OutOfRange,
     BusError(E),
@@ -30,7 +31,7 @@ where
     fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
         match self.ctx.try_write(self.address, &ptr.to_le_bytes()) {
             Ok(_) => Ok(()),
-            Err(e) => Err(()),
+            Err(_e) => Err(()),
         }
     }
 
@@ -49,15 +50,15 @@ where
                     Err(())
                 }
             }
-            Err(e) => Err(()),
+            Err(_e) => Err(()),
         }
     }
 
-    pub fn set_config_reg(&mut self, reg: u8) {
+    pub fn set_config_reg(&mut self, _reg: u8) {
         todo!()
     }
 
-    pub fn update_config_reg<U>(&mut self, reg: U)
+    pub fn update_config_reg<U>(&mut self, _reg: U)
     where
         U: Into<ConfigReg>,
     {
@@ -74,7 +75,7 @@ mod tests {
     extern crate std;
     use std::vec;
 
-    use super::{Read, Write, WriteRead, Tcn75a};
+    use super::{Tcn75a};
     use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 
     #[test]
