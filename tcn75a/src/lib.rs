@@ -15,10 +15,12 @@ where
     reg: Option<u8>,
 }
 
-#[allow(dead_code)]
-enum TempReadError<E> {
+#[derive(Debug, PartialEq)]
+pub enum Tcn75aError<R, W> {
     OutOfRange,
-    BusError(E),
+    RegPtrError(W),
+    ReadError(R),
+    WriteError(W)
 }
 
 impl<T> Tcn75a<T>
@@ -29,7 +31,7 @@ where
         Tcn75a { ctx, address, reg: None }
     }
 
-    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
+    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         if ptr > 3 {
             panic!("Register pointer must be set to between 0 and 3 (inclusive).");
         }
@@ -45,14 +47,14 @@ where
                 self.reg = Some(ptr);
                 Ok(())
             },
-            Err(_e) => {
+            Err(e) => {
                 self.reg = None;
-                Err(())
+                Err(Tcn75aError::WriteError(e))
             }
         }
     }
 
-    pub fn temperature(&mut self) -> Result<i16, ()> {
+    pub fn temperature(&mut self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
@@ -64,10 +66,10 @@ where
                 if temp_limited >= -2048 && temp_limited < 2048 {
                     Ok(temp_limited)
                 } else {
-                    Err(())
+                    Err(Tcn75aError::OutOfRange)
                 }
             }
-            Err(_e) => Err(()),
+            Err(e) => Err(Tcn75aError::ReadError(e)),
         }
     }
 
@@ -93,7 +95,7 @@ mod tests {
     use std::vec;
     use std::io::ErrorKind;
 
-    use super::{Tcn75a};
+    use super::{Tcn75a, Tcn75aError};
     use embedded_hal_mock::{MockError, i2c::{Mock as I2cMock, Transaction as I2cTransaction}};
 
     fn mk_tcn75a(expectations: &[I2cTransaction], addr: u8) -> Tcn75a<I2cMock> {
@@ -132,7 +134,7 @@ mod tests {
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.reg, Some(0));
-        assert_eq!(tcn.set_reg_ptr(1), Err(()));
+        assert_eq!(tcn.set_reg_ptr(1), Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other))));
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.set_reg_ptr(1), Ok(()));
         assert_eq!(tcn.reg, Some(1));
