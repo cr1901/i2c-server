@@ -1,3 +1,20 @@
+/*! `tcn75a` is an [`embedded_hal`](https://github.com/rust-embedded/embedded-hal) crate for
+accessing [Microchip TCN75A](https://www.microchip.com/wwwproducts/TCN75A) temperature sensors
+over an I2C bus.
+
+The TCN75A consists of 4 registers and a writeable register pointer. Three registers are for
+configuration, represented as the following:
+
+* Sensor Configuration Register (various `enum`s)
+* Temperature Hysteresis Register (`i16`, -2048 to 2047)
+* Temperature Limit-Set Register (`i16`, -2048 to 2047)
+
+The remaining register contains the current temperature as an `i16`, from -2048 to 2047.
+
+To avoid redundant register reads and write, the `tcn75a` crate caches the contents of some
+registers (particularly the register pointer and Sensor Configuration Register). At present,
+the `tcn75a` crate therefore _only works on I2C buses with a single controller._ Multi-controller
+operation is possible at the cost of performance, but not implemented. */
 #![no_std]
 
 use core::result::Result;
@@ -6,6 +23,12 @@ use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 mod config;
 use config::*;
 
+/** A struct for describing how to read and write a TCN75A temperature sensors' registers via an
+[`embedded_hal`] implementation (for a single-controller I2C bus).
+
+Internally, the struct caches information written to the temperature sensor to speed up future
+reads and writes. Due to caching, this [Tcn75a] struct is only usable on I2C buses with a single
+controller. */
 pub struct Tcn75a<T>
 where
     T: Read + Write + WriteRead,
@@ -16,10 +39,19 @@ where
 }
 
 #[derive(Debug, PartialEq)]
+/// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 pub enum Tcn75aError<R, W> {
+    /** A temperature value was read successfully, but some bits were set that should always
+    read as zero for the given resolution. */
     OutOfRange,
+    /** The register pointer could not be set to write the desired register. Contains the error
+    reason from [Write::Error]. */
     RegPtrError(W),
+    /** Reading the desired register via `embedded_hal` failed. Contains a [Read::Error],
+    propagated from the [`embedded_hal`] implementation. */
     ReadError(R),
+    /** Writing the desired register via `embedded_hal` failed. Contains a [Write::Error],
+    propagated from the [`embedded_hal`] implementation. */
     WriteError(W)
 }
 
