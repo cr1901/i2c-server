@@ -49,7 +49,7 @@ where
             },
             Err(e) => {
                 self.reg = None;
-                Err(Tcn75aError::WriteError(e))
+                Err(Tcn75aError::RegPtrError(e))
             }
         }
     }
@@ -134,7 +134,7 @@ mod tests {
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.reg, Some(0));
-        assert_eq!(tcn.set_reg_ptr(1), Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(tcn.set_reg_ptr(1), Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other))));
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.set_reg_ptr(1), Ok(()));
         assert_eq!(tcn.reg, Some(1));
