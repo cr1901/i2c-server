@@ -29,7 +29,11 @@ where
         Tcn75a { ctx, address, reg: None }
     }
 
-    fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
+    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), ()> {
+        if ptr > 3 {
+            panic!("Register pointer must be set to between 0 and 3 (inclusive).");
+        }
+
         if let Some(curr) = self.reg {
             if curr == ptr {
                 return Ok(())
@@ -103,5 +107,16 @@ mod tests {
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.set_reg_ptr(3), Ok(()));
+        assert_eq!(tcn.reg, Some(3));
+    }
+
+    #[test]
+    #[should_panic(expected="Register pointer must be set to between 0 and 3 (inclusive).")]
+    fn reg_ptr_out_of_bounds() {
+        let expectations = [];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut tcn = Tcn75a::new(i2c, 0x48);
+        tcn.set_reg_ptr(4).unwrap();
     }
 }
