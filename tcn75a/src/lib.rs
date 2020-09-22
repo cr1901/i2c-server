@@ -91,19 +91,24 @@ where
 mod tests {
     extern crate std;
     use std::vec;
+    use std::io::ErrorKind;
 
     use super::{Tcn75a};
-    use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    use embedded_hal_mock::{MockError, i2c::{Mock as I2cMock, Transaction as I2cTransaction}};
+
+    fn mk_tcn75a(expectations: &[I2cTransaction], addr: u8) -> Tcn75a<I2cMock> {
+        let i2c = I2cMock::new(expectations);
+        let tcn = Tcn75a::new(i2c, addr);
+
+        tcn
+    }
 
     #[test]
-    fn test_reg_ptr() {
-        let expectations = [
+    fn set_reg_ptr() {
+        let mut tcn = mk_tcn75a(&[
             I2cTransaction::write(0x48, vec![0]),
             I2cTransaction::write(0x48, vec![3])
-        ];
-
-        let i2c = I2cMock::new(&expectations);
-        let mut tcn = Tcn75a::new(i2c, 0x48);
+        ], 0x48);
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.set_reg_ptr(3), Ok(()));
@@ -113,10 +118,33 @@ mod tests {
     #[test]
     #[should_panic(expected="Register pointer must be set to between 0 and 3 (inclusive).")]
     fn reg_ptr_out_of_bounds() {
-        let expectations = [];
-
-        let i2c = I2cMock::new(&expectations);
-        let mut tcn = Tcn75a::new(i2c, 0x48);
+        let mut tcn = mk_tcn75a(&[], 0x48);
         tcn.set_reg_ptr(4).unwrap();
+    }
+
+    #[test]
+    fn set_reg_ptr_fail() {
+        let mut tcn = mk_tcn75a(&[
+            I2cTransaction::write(0x48, vec![0]),
+            I2cTransaction::write(0x48, vec![1]).with_error(MockError::Io(ErrorKind::Other)),
+            I2cTransaction::write(0x48, vec![1])
+        ], 0x48);
+
+        assert_eq!(tcn.set_reg_ptr(0), Ok(()));
+        assert_eq!(tcn.reg, Some(0));
+        assert_eq!(tcn.set_reg_ptr(1), Err(()));
+        assert_eq!(tcn.reg, None);
+        assert_eq!(tcn.set_reg_ptr(1), Ok(()));
+        assert_eq!(tcn.reg, Some(1));
+    }
+
+    #[test]
+    #[should_panic(expected="i2c::write address mismatch")]
+    fn wrong_addr() {
+        let mut tcn = mk_tcn75a(&[
+            I2cTransaction::write(0x47, vec![0]),
+        ], 0x48);
+
+        tcn.set_reg_ptr(0).unwrap();
     }
 }
