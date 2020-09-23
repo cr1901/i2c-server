@@ -160,6 +160,10 @@ where
         }
     }
 
+    pub fn config_reg(&self) -> ConfigRegProxy {
+        todo!()
+    }
+
     pub fn set_config_reg(&mut self, _reg: u8) {
         todo!()
     }
@@ -168,6 +172,22 @@ where
     where
         U: Into<ConfigReg>,
     {
+        todo!()
+    }
+
+    pub fn hysteresis(&self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        todo!()
+    }
+
+    pub fn set_hysteresis(&mut self, _temp: i16) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        todo!()
+    }
+
+    pub fn limit(&self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        todo!()
+    }
+
+    pub fn set_limit(&mut self, _temp: i16) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         todo!()
     }
 
