@@ -87,7 +87,6 @@ where
     * `ctx`: A type `T` implementing the [I2C traits] of [`embedded_hal`].
     * `address`: I2C address of the TCN75A sensor.
 
-
     [I2C traits]: ../embedded_hal/blocking/i2c/index.html#traits
     [`embedded_hal`]: ../embedded_hal
     */
@@ -95,6 +94,30 @@ where
         Tcn75a { ctx, address, reg: None }
     }
 
+    /** Set the internal TCN75A register pointer to the specified address.
+
+    All functions of [`Tcn75a`] that read or write registers will automatically set the register
+    pointer beforehand. The previous register pointer value set is cached. It may be useful to
+    manually set the register yourself some time _before_ you need to perform a write or read to
+    the pointed-to register.
+
+    # Arguments
+
+    * `ptr`: Value to which to set the internal TCN75A register pointer.
+
+    # Errors
+
+    * [`Tcn75aError::RegPtrError`]: Returned if the I2C write to set the register pointer failed.
+      The register pointer cache is flushed.
+
+    # Panics
+
+    This function panics if `ptr` is greater than 3; the TCN75A has 4 registers starting at offset
+    0.
+
+    [`Tcn75a`]: ./struct.Tcn75a.html
+    [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
+    */
     pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         if ptr > 3 {
             panic!("Register pointer must be set to between 0 and 3 (inclusive).");
@@ -148,6 +171,15 @@ where
         todo!()
     }
 
+    /** Release the resources used to perform TCN75A transactions.
+
+    No I2C transactions occur in this function. The wrapped [`embedded_hal`] instance is
+    returned. You can call [`Tcn75a::new`] again with the returned instance to create a new
+    `Tcn75a` struct associated with the same device (with undefined caches).
+
+    [`embedded_hal`]: ../embedded_hal
+    [`Tcn75a::new`]: ../struct.Tcn75a.html#method.new
+    */
     pub fn free(self) -> T {
         self.ctx
     }
