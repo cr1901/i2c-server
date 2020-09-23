@@ -1,6 +1,5 @@
-/*! `tcn75a` is an [`embedded_hal`](https://github.com/rust-embedded/embedded-hal) crate for
-accessing [Microchip TCN75A](https://www.microchip.com/wwwproducts/TCN75A) temperature sensors
-over an I2C bus.
+/*! `tcn75a` is an [Embedded HAL] crate for accessing [Microchip TCN75A][TCN75A] temperature
+sensors over an I2C bus.
 
 The TCN75A consists of 4 registers and a writeable register pointer. Three registers are for
 configuration, represented as the following:
@@ -14,7 +13,12 @@ The remaining register contains the current temperature as an `i16`, from -2048 
 To avoid redundant register reads and write, the `tcn75a` crate caches the contents of some
 registers (particularly the register pointer and Sensor Configuration Register). At present,
 the `tcn75a` crate therefore _only works on I2C buses with a single controller._ Multi-controller
-operation is possible at the cost of performance, but not implemented. */
+operation is possible at the cost of performance, but not implemented.
+
+[Embedded HAL]: https://github.com/rust-embedded/embedded-hal
+[TCN75A]: https://www.microchip.com/wwwproducts/TCN75A
+
+*/
 #![no_std]
 
 use core::result::Result;
@@ -27,8 +31,12 @@ use config::*;
 [`embedded_hal`] implementation (for a single-controller I2C bus).
 
 Internally, the struct caches information written to the temperature sensor to speed up future
-reads and writes. Due to caching, this [Tcn75a] struct is only usable on I2C buses with a single
-controller. */
+reads and writes. Due to caching, this [`Tcn75a`] struct is only usable on I2C buses with a single
+controller.
+
+[`Tcn75a`]: ./struct.Tcn75a.html
+[`embedded_hal`]: ../embedded_hal/index.html
+*/
 pub struct Tcn75a<T>
 where
     T: Read + Write + WriteRead,
@@ -45,20 +53,44 @@ pub enum Tcn75aError<R, W> {
     read as zero for the given resolution. */
     OutOfRange,
     /** The register pointer could not be set to write the desired register. Contains the error
-    reason from [Write::Error]. */
+    reason from [Write::Error].
+
+    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
+    */
     RegPtrError(W),
-    /** Reading the desired register via `embedded_hal` failed. Contains a [Read::Error],
-    propagated from the [`embedded_hal`] implementation. */
+    /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
+    propagated from the [`embedded_hal`] implementation.
+
+    [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html
+    [`embedded_hal`]: ../embedded_hal/index.html
+    */
     ReadError(R),
-    /** Writing the desired register via `embedded_hal` failed. Contains a [Write::Error],
-    propagated from the [`embedded_hal`] implementation. */
-    WriteError(W)
+    /** Writing the desired register via [`embedded_hal`] failed. Contains a [`Write::Error`],
+    propagated from the [`embedded_hal`] implementation.
+
+    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
+    [`embedded_hal`]: ../embedded_hal
+    */
+    WriteError(W),
 }
 
 impl<T> Tcn75a<T>
 where
     T: Read + Write + WriteRead,
 {
+    /** Initialize all the data required to read and write a TCN75A on an I2C bus.
+
+    No I2C transactions occur in this function.
+
+    # Arguments
+
+    * `ctx`: A type `T` implementing the [I2C traits] of [`embedded_hal`].
+    * `address`: I2C address of the TCN75A sensor.
+
+
+    [I2C traits]: ../embedded_hal/blocking/i2c/index.html#traits
+    [`embedded_hal`]: ../embedded_hal
+    */
     pub fn new(ctx: T, address: u8) -> Self {
         Tcn75a { ctx, address, reg: None }
     }
