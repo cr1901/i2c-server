@@ -11,6 +11,7 @@ embedded-hal = "0.2.2"
 
 [dev-dependencies]
 embedded-hal-mock = "0.7.2"
+cfg-if = "0.1.10"
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dev-dependencies]
 linux-embedded-hal = "0.3.0"
