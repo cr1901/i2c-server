@@ -69,7 +69,7 @@ pub enum Tcn75aError<R, W> {
     propagated from the [`embedded_hal`] implementation.
 
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
-    [`embedded_hal`]: ../embedded_hal
+    [`embedded_hal`]: ../embedded_hal/index.html
     */
     WriteError(W),
 }
@@ -129,7 +129,7 @@ where
             }
         }
 
-        match self.ctx.try_write(self.address, &ptr.to_le_bytes()) {
+        match self.ctx.write(self.address, &ptr.to_le_bytes()) {
             Ok(_) => {
                 self.reg = Some(ptr);
                 Ok(())
@@ -146,7 +146,7 @@ where
 
         self.set_reg_ptr(0x00)?;
 
-        match self.ctx.try_read(self.address, &mut temp) {
+        match self.ctx.read(self.address, &mut temp) {
             Ok(_) => {
                 let temp_limited = i16::from_be_bytes(temp) >> 4;
 
