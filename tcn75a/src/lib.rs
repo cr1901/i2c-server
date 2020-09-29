@@ -87,6 +87,21 @@ where
     * `ctx`: A type `T` implementing the [I2C traits] of [`embedded_hal`].
     * `address`: I2C address of the TCN75A sensor.
 
+    # Examples
+
+    ```
+    use tcn75a::Tcn75a;
+    # #[cfg(any(target_os = "linux", target_os = "android"))]
+    use linux_embedded_hal::I2cdev;
+    # #[cfg(any(target_os = "linux", target_os = "android"))]
+    # use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
+
+    let i2c = I2cdev::new("/dev/i2c-2")?;
+    let mut tcn = Tcn75a::new(i2c, 0x48);
+    # #[cfg(any(target_os = "linux", target_os = "android"))]
+    # Ok::<(), LinuxI2CError>(())
+    ```
+
     [I2C traits]: ../embedded_hal/blocking/i2c/index.html#traits
     [`embedded_hal`]: ../embedded_hal
     */
