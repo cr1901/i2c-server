@@ -97,7 +97,7 @@ where
     use tcn75a::Tcn75a;
     use linux_embedded_hal::I2cdev;
 
-    let i2c = I2cdev::new("/dev/i2c-2")?;
+    let i2c = I2cdev::new("/dev/i2c-1")?;
     let mut tcn = Tcn75a::new(i2c, 0x48);
     # Ok::<(), LinuxI2CError>(())
     # }
@@ -125,6 +125,32 @@ where
     # Arguments
 
     * `ptr`: Value to which to set the internal TCN75A register pointer.
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError};
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    // Set the register pointer ahead of time.
+    // Then read temp values as fast as possible.
+    tcn.set_reg_ptr(0)?;
+    for _ in 0..10 {
+        println!("Temperature is: {}", tcn.temperature()?);
+    }
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
 
     # Errors
 
