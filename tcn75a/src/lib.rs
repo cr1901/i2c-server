@@ -25,7 +25,7 @@ use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 mod config;
-use config::*;
+pub use config::*;
 
 /** A struct for describing how to read and write a TCN75A temperature sensors' registers via an
 [`embedded_hal`] implementation (for a single-controller I2C bus).
