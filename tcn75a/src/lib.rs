@@ -5,8 +5,8 @@ The TCN75A consists of 4 registers and a writeable register pointer. Three regis
 configuration, represented as the following:
 
 * Sensor Configuration Register (various `enum`s)
-* Temperature Hysteresis Register (`i16`, -2048 to 2047)
-* Temperature Limit-Set Register (`i16`, -2048 to 2047)
+* Temperature Hysteresis Register (`i16`, -256 to 255)
+* Temperature Limit-Set Register (`i16`, -256 to 255)
 
 The remaining register contains the current temperature as an `i16`, from -2048 to 2047.
 

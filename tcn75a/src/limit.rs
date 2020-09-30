@@ -1,13 +1,74 @@
 use core::convert::{From, TryFrom};
 
-#[derive(Debug, PartialEq)]
+/** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
+
+The Hysteresis and Limit-Set register provide the lower and upper bounds respectively of
+the temperature range that the TCN75A should monitor. Temperatures outside this range will
+assert the alert pin on the TCN75A. Temperatures are represented as 9-bit signed integers, which
+corresponds to 0.5 degrees Celsius precision.
+
+# Invariants
+
+Successfully creating an instance of this struct provides the following runtime invariants:
+
+* The Hysteresis and Limit-Set register values fit within a 9-bit signed integer
+  (`i16`, -256 to 255).
+* The Hysteresis limit value is less than the Limit-Set register.
+
+As part of upholding these invariants:
+
+* It is not currently possible to individually access either value of a [`Limits`] struct during
+  its lifetime.
+* The [`Tcn75a`] inherent implementation operates on [`Limits`], even if only one value or the
+  other is needed.
+
+# Examples
+
+A [`Limits`] struct is created by invoking [`try_from`] on a `(i16, i16)` tuple, where the
+Hysteresis (Low) value is on the left, and the Limit-Set (High) value is on the right. A
+[`From<Limits>`][`From`] implementation on `(i16, i16)` consumes a [`Limits`] struct and gets back
+the original values:
+
+```
+# use core::convert::TryFrom;
+# use tcn75a::Limits;
+let orig = (0, 255);
+let lims : Limits = TryFrom::try_from(orig).unwrap();
+let restored = lims.into();
+assert_eq!(orig, restored);
+```
+
+[`Limits`]: ./struct.Limits.html
+[`Tcn75a`]: ./struct.Tcn75a.html
+[`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from
+[`From`]: https://doc.rust-lang.org/nightly/core/convert/trait.From.html
+*/
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Limits(i16, i16);
 
+/** Reasons a conversion from `(i16, i16)` to [`Limits`] may fail.
+
+Due to its runtime guarantees, a [`Limits`] struct can only be created by invoking [`try_from`]
+on a `(i16, i16)` tuple. [`LimitError`] is the associated [`Error`] type in the
+[`TryFrom<(i16, i16)>>`][`TryFrom`] implementation on [`Limits`], and it contains all the reasons
+a conversion from `(i16, i16)` can fail.
+
+[`Limits`]: ./struct.Limits.html
+[`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from
+[`LimitError`]: ./enum.LimitError.html
+[`Error`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#associatedtype.Error
+[`TryFrom`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html
+*/
 #[derive(Debug, PartialEq)]
 pub enum LimitError {
+    /** _Both_ the Hysteresis and Limit-Set values provided do not fit in a 9-bit signed
+    integer. */
     BothOutOfRange,
+    /** The Hysteresis value provided does not fit in a 9-bit signed integer. */
     LowOutOfRange,
+    /** The Limit-Set value provided does not fit in a 9-bit signed integer. */
     HighOutOfRange,
+    /** The Hysteresis value is greater than _or equal to_ the Limit-Set value provided. */
     LowExceedsHigh
 }
 
