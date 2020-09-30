@@ -22,10 +22,14 @@ operation is possible at the cost of performance, but not implemented.
 #![no_std]
 
 use core::result::Result;
+use core::convert::TryFrom;
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 mod config;
 pub use config::*;
+
+mod limit;
+pub use limit::*;
 
 /** A struct for describing how to read and write a TCN75A temperature sensors' registers via an
 [`embedded_hal`] implementation (for a single-controller I2C bus).
@@ -52,6 +56,7 @@ pub enum Tcn75aError<R, W> {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero for the given resolution. */
     OutOfRange,
+    LimitError(LimitError),
     /** The register pointer could not be set to write the desired register. Contains the error
     reason from [Write::Error].
 
@@ -222,20 +227,57 @@ where
         todo!()
     }
 
-    pub fn hysteresis(&self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
-        todo!()
+    pub fn limits(&mut self) -> Result<Limits, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        let mut buf: [u8; 2] = [0u8; 2];
+        let mut lim = (0i16, 0i16);
+
+        self.set_reg_ptr(0x02)?;
+        match self.ctx.read(self.address, &mut buf) {
+            Ok(_) => {
+                lim.0 = i16::from_be_bytes(buf) >> 7;
+            },
+            Err(e) => {
+                return Err(Tcn75aError::ReadError(e));
+            }
+        };
+
+        self.set_reg_ptr(0x03)?;
+        match self.ctx.read(self.address, &mut buf) {
+            Ok(_) => {
+                lim.1 = i16::from_be_bytes(buf) >> 7;
+            },
+            Err(e) => {
+                return Err(Tcn75aError::ReadError(e));
+            }
+        };
+
+        TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
     }
 
-    pub fn set_hysteresis(&mut self, _temp: i16) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
-        todo!()
-    }
+    pub fn set_limits(&mut self, limits: Limits) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        let (mut lower, mut upper) = limits.into();
 
-    pub fn limit(&self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
-        todo!()
-    }
+        self.set_reg_ptr(0x02)?;
+        lower <<= 7;
 
-    pub fn set_limit(&mut self, _temp: i16) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
-        todo!()
+        match self.ctx.write(self.address, &lower.to_be_bytes()) {
+            Ok(_) => { },
+            Err(e) => {
+                return Err(Tcn75aError::WriteError(e));
+            }
+        };
+
+        self.set_reg_ptr(0x03)?;
+        upper <<= 7;
+
+        match self.ctx.write(self.address, &upper.to_be_bytes()) {
+            Ok(_) => {
+                Ok(())
+            },
+            Err(e) => {
+                Err(Tcn75aError::WriteError(e))
+            }
+        }
     }
 
     /** Release the resources used to perform TCN75A transactions.
