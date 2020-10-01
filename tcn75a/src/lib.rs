@@ -35,7 +35,7 @@ pub use limit::*;
 [`embedded_hal`] implementation (for a single-controller I2C bus).
 
 Internally, the struct caches information written to the temperature sensor to speed up future
-reads and writes. Due to caching, this [`Tcn75a`] struct is only usable on I2C buses with a single
+reads. Due to caching, this [`Tcn75a`] struct is only usable on I2C buses with a single
 controller.
 
 [`Tcn75a`]: ./struct.Tcn75a.html
@@ -56,11 +56,19 @@ pub enum Tcn75aError<R, W> {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero for the given resolution. */
     OutOfRange,
+    /** The temperature limit registers were read successfully, but the values read were invalid
+    (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid.
+
+    [invariants]: ./struct.Limits.html#invariants
+    [`LimitError`]: ./enum.LimitError.html
+    */
     LimitError(LimitError),
-    /** The register pointer could not be set to write the desired register. Contains the error
-    reason from [Write::Error].
+    /** The register pointer could not be set to _read_ the desired register. Contains the error
+    reason from [`Write::Error`]. For register writes, [`WriteError`] is returned if the register
+    pointer failed to update.
 
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
+    [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     RegPtrError(W),
     /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
@@ -260,19 +268,27 @@ where
         &mut self,
         limits: Limits,
     ) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+        let mut buf: [u8; 3] = [0u8; 3];
         let (mut lower, mut upper) = limits.into();
 
-        self.set_reg_ptr(0x02)?;
+        // Reg ptr
+        buf[0] = 0x02;
         lower <<= 7;
-        self.ctx
-            .write(self.address, &lower.to_be_bytes())
-            .map_err(|e| Tcn75aError::WriteError(e))?;
+        &buf[1..3].copy_from_slice(&lower.to_be_bytes());
 
-        self.set_reg_ptr(0x03)?;
-        upper <<= 7;
         self.ctx
-            .write(self.address, &upper.to_be_bytes())
-            .map_err(|e| Tcn75aError::WriteError(e))
+            .write(self.address, &buf)
+            .map_err(|e| Tcn75aError::WriteError(e))?;
+        self.reg = Some(0x02);
+
+        buf[0] = 0x03;
+        upper <<= 7;
+        &buf[1..3].copy_from_slice(&upper.to_be_bytes());
+        self.ctx
+            .write(self.address, &buf)
+            .map_err(|e| Tcn75aError::WriteError(e))?;
+        self.reg = Some(0x03);
+        Ok(())
     }
 
     /** Release the resources used to perform TCN75A transactions.
@@ -292,6 +308,7 @@ where
 #[cfg(test)]
 mod tests {
     extern crate std;
+    use std::convert::TryInto;
     use std::io::ErrorKind;
     use std::vec;
 
@@ -358,5 +375,46 @@ mod tests {
         let mut tcn = mk_tcn75a(&[I2cTransaction::write(0x47, vec![0])], 0x48);
 
         tcn.set_reg_ptr(0).unwrap();
+    }
+
+    #[test]
+    fn write_read_limits() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![2, 0x5a, 0x00]),
+                I2cTransaction::write(0x48, vec![3, 0x5f, 0x00]),
+                I2cTransaction::write(0x48, vec![2]),
+                I2cTransaction::read(0x48, vec![0x5a, 0x00]),
+                I2cTransaction::write(0x48, vec![3]),
+                I2cTransaction::read(0x48, vec![0x5f, 0x00]),
+            ],
+            0x48,
+        );
+
+        assert_eq!(tcn.set_limits((90 * 2, 95 * 2).try_into().unwrap()), Ok(()));
+        assert_eq!(tcn.limits().unwrap().try_into(), Ok((90 * 2, 95 * 2)));
+    }
+
+    #[test]
+    fn write_limits_cache_partial_update() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![2, 0x5a, 0x00]),
+                I2cTransaction::write(0x48, vec![3, 0x5f, 0x00])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::read(0x48, vec![0x5a, 0x00]),
+                I2cTransaction::write(0x48, vec![3]),
+                // Technically undefined value- don't actually care what the value is.
+                // Use 0x5f/95 as a placeholder.
+                I2cTransaction::read(0x48, vec![0x5f, 0x00]),
+            ],
+            0x48,
+        );
+
+        assert_eq!(
+            tcn.set_limits((90 * 2, 95 * 2).try_into().unwrap()),
+            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
+        );
+        assert_eq!(tcn.limits().unwrap().try_into(), Ok((90 * 2, 95 * 2)));
     }
 }
