@@ -181,34 +181,32 @@ where
             }
         }
 
-        match self.ctx.write(self.address, &ptr.to_le_bytes()) {
-            Ok(_) => {
+        self.ctx.write(self.address, &ptr.to_le_bytes())
+            .and_then(|_| {
                 self.reg = Some(ptr);
                 Ok(())
-            },
-            Err(e) => {
+            })
+            .or_else(|e| {
                 self.reg = None;
                 Err(Tcn75aError::RegPtrError(e))
-            }
-        }
+            })
     }
 
     pub fn temperature(&mut self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
+        self.ctx.read(self.address, &mut temp)
+            .map_err(|e| {
+                Tcn75aError::ReadError(e)
+            })?;
 
-        match self.ctx.read(self.address, &mut temp) {
-            Ok(_) => {
-                let temp_limited = i16::from_be_bytes(temp) >> 4;
+        let temp_limited = i16::from_be_bytes(temp) >> 4;
 
-                if temp_limited >= -2048 && temp_limited < 2048 {
-                    Ok(temp_limited)
-                } else {
-                    Err(Tcn75aError::OutOfRange)
-                }
-            }
-            Err(e) => Err(Tcn75aError::ReadError(e)),
+        if temp_limited >= -2048 && temp_limited < 2048 {
+            Ok(temp_limited)
+        } else {
+            Err(Tcn75aError::OutOfRange)
         }
     }
 
@@ -225,26 +223,26 @@ where
         let mut lim = (0i16, 0i16);
 
         self.set_reg_ptr(0x02)?;
-        match self.ctx.read(self.address, &mut buf) {
-            Ok(_) => {
-                lim.0 = i16::from_be_bytes(buf) >> 7;
-            },
-            Err(e) => {
-                return Err(Tcn75aError::ReadError(e));
-            }
-        };
+        lim.0 = self.ctx.read(self.address, &mut buf)
+            .and_then(|_| {
+                Ok(i16::from_be_bytes(buf) >> 7)
+            })
+            .map_err(|e| {
+                Tcn75aError::ReadError(e)
+            })?;
 
         self.set_reg_ptr(0x03)?;
-        match self.ctx.read(self.address, &mut buf) {
-            Ok(_) => {
-                lim.1 = i16::from_be_bytes(buf) >> 7;
-            },
-            Err(e) => {
-                return Err(Tcn75aError::ReadError(e));
-            }
-        };
+        lim.1 = self.ctx.read(self.address, &mut buf)
+            .and_then(|_| {
+                Ok(i16::from_be_bytes(buf) >> 7)
+            })
+            .map_err(|e| {
+                Tcn75aError::ReadError(e)
+            })?;
 
-        TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
+        TryFrom::try_from(lim).map_err(|e| {
+            Tcn75aError::LimitError(e)
+        })
     }
 
     pub fn set_limits(&mut self, limits: Limits) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
@@ -252,25 +250,17 @@ where
 
         self.set_reg_ptr(0x02)?;
         lower <<= 7;
-
-        match self.ctx.write(self.address, &lower.to_be_bytes()) {
-            Ok(_) => { },
-            Err(e) => {
-                return Err(Tcn75aError::WriteError(e));
-            }
-        };
+        self.ctx.write(self.address, &lower.to_be_bytes())
+            .map_err(|e| {
+                Tcn75aError::WriteError(e)
+            })?;
 
         self.set_reg_ptr(0x03)?;
         upper <<= 7;
-
-        match self.ctx.write(self.address, &upper.to_be_bytes()) {
-            Ok(_) => {
-                Ok(())
-            },
-            Err(e) => {
-                Err(Tcn75aError::WriteError(e))
-            }
-        }
+        self.ctx.write(self.address, &upper.to_be_bytes())
+            .map_err(|e| {
+                Tcn75aError::WriteError(e)
+            })
     }
 
     /** Release the resources used to perform TCN75A transactions.
