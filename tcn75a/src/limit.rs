@@ -19,8 +19,8 @@ As part of upholding these invariants:
 
 * It is not currently possible to individually access either value of a [`Limits`] struct during
   its lifetime.
-* The [`Tcn75a`] inherent implementation operates on [`Limits`], even if only one value or the
-  other is needed.
+* The [`Tcn75a`] inherent implementation operates on both the Hysteresis and Limit-Set registers
+  in API functions instead of providing access to each individual register.
 
 # Examples
 
@@ -30,10 +30,10 @@ Hysteresis (Low) value is on the left, and the Limit-Set (High) value is on the 
 the original values:
 
 ```
-# use core::convert::TryFrom;
+# use std::convert::TryInto;
 # use tcn75a::Limits;
 let orig = (0, 255);
-let lims : Limits = TryFrom::try_from(orig).unwrap();
+let lims : Limits = orig.try_into().unwrap();
 let restored = lims.into();
 assert_eq!(orig, restored);
 ```

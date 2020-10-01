@@ -66,18 +66,27 @@ pub enum Tcn75aError<R, W> {
     /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html
+    [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     ReadError(R),
     /** Writing the desired register via [`embedded_hal`] failed. Contains a [`Write::Error`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
+    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     WriteError(W),
 }
+
+/** Convenience type for representing [`Tcn75aError`]s where `T` implements both [`Read`]
+and [`Write`].
+
+[`Tcn75aError`]: ./enum.Tcn75aError.html
+[`Read`]: ../embedded_hal/blocking/i2c/trait.Read.html
+[`Write`]: ../embedded_hal/blocking/i2c/trait.Write.html
+*/
+pub type Error<T> = Tcn75aError<<T as Read>::Error, <T as Write>::Error>;
 
 impl<T> Tcn75a<T>
 where
@@ -170,7 +179,7 @@ where
     [`Tcn75a`]: ./struct.Tcn75a.html
     [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
     */
-    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    pub fn set_reg_ptr(&mut self, ptr: u8) -> Result<(), Error<T>> {
         if ptr > 3 {
             panic!("Register pointer must be set to between 0 and 3 (inclusive).");
         }
