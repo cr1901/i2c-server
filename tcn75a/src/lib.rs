@@ -21,8 +21,8 @@ operation is possible at the cost of performance, but not implemented.
 */
 #![no_std]
 
-use core::result::Result;
 use core::convert::TryFrom;
+use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 mod config;
@@ -126,7 +126,11 @@ where
     [`embedded_hal`]: ../embedded_hal
     */
     pub fn new(ctx: T, address: u8) -> Self {
-        Tcn75a { ctx, address, reg: None }
+        Tcn75a {
+            ctx,
+            address,
+            reg: None,
+        }
     }
 
     /** Set the internal TCN75A register pointer to the specified address.
@@ -186,11 +190,12 @@ where
 
         if let Some(curr) = self.reg {
             if curr == ptr {
-                return Ok(())
+                return Ok(());
             }
         }
 
-        self.ctx.write(self.address, &ptr.to_le_bytes())
+        self.ctx
+            .write(self.address, &ptr.to_le_bytes())
             .and_then(|_| {
                 self.reg = Some(ptr);
                 Ok(())
@@ -201,14 +206,15 @@ where
             })
     }
 
-    pub fn temperature(&mut self) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    pub fn temperature(
+        &mut self,
+    ) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
-        self.ctx.read(self.address, &mut temp)
-            .map_err(|e| {
-                Tcn75aError::ReadError(e)
-            })?;
+        self.ctx
+            .read(self.address, &mut temp)
+            .map_err(|e| Tcn75aError::ReadError(e))?;
 
         let temp_limited = i16::from_be_bytes(temp) >> 4;
 
@@ -227,49 +233,46 @@ where
         todo!()
     }
 
-    pub fn limits(&mut self) -> Result<Limits, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    pub fn limits(
+        &mut self,
+    ) -> Result<Limits, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         let mut buf: [u8; 2] = [0u8; 2];
         let mut lim = (0i16, 0i16);
 
         self.set_reg_ptr(0x02)?;
-        lim.0 = self.ctx.read(self.address, &mut buf)
-            .and_then(|_| {
-                Ok(i16::from_be_bytes(buf) >> 7)
-            })
-            .map_err(|e| {
-                Tcn75aError::ReadError(e)
-            })?;
+        lim.0 = self
+            .ctx
+            .read(self.address, &mut buf)
+            .and_then(|_| Ok(i16::from_be_bytes(buf) >> 7))
+            .map_err(|e| Tcn75aError::ReadError(e))?;
 
         self.set_reg_ptr(0x03)?;
-        lim.1 = self.ctx.read(self.address, &mut buf)
-            .and_then(|_| {
-                Ok(i16::from_be_bytes(buf) >> 7)
-            })
-            .map_err(|e| {
-                Tcn75aError::ReadError(e)
-            })?;
+        lim.1 = self
+            .ctx
+            .read(self.address, &mut buf)
+            .and_then(|_| Ok(i16::from_be_bytes(buf) >> 7))
+            .map_err(|e| Tcn75aError::ReadError(e))?;
 
-        TryFrom::try_from(lim).map_err(|e| {
-            Tcn75aError::LimitError(e)
-        })
+        TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
     }
 
-    pub fn set_limits(&mut self, limits: Limits) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    pub fn set_limits(
+        &mut self,
+        limits: Limits,
+    ) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
         let (mut lower, mut upper) = limits.into();
 
         self.set_reg_ptr(0x02)?;
         lower <<= 7;
-        self.ctx.write(self.address, &lower.to_be_bytes())
-            .map_err(|e| {
-                Tcn75aError::WriteError(e)
-            })?;
+        self.ctx
+            .write(self.address, &lower.to_be_bytes())
+            .map_err(|e| Tcn75aError::WriteError(e))?;
 
         self.set_reg_ptr(0x03)?;
         upper <<= 7;
-        self.ctx.write(self.address, &upper.to_be_bytes())
-            .map_err(|e| {
-                Tcn75aError::WriteError(e)
-            })
+        self.ctx
+            .write(self.address, &upper.to_be_bytes())
+            .map_err(|e| Tcn75aError::WriteError(e))
     }
 
     /** Release the resources used to perform TCN75A transactions.
@@ -289,11 +292,14 @@ where
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use std::vec;
     use std::io::ErrorKind;
+    use std::vec;
 
     use super::{Tcn75a, Tcn75aError};
-    use embedded_hal_mock::{MockError, i2c::{Mock as I2cMock, Transaction as I2cTransaction}};
+    use embedded_hal_mock::{
+        i2c::{Mock as I2cMock, Transaction as I2cTransaction},
+        MockError,
+    };
 
     fn mk_tcn75a(expectations: &[I2cTransaction], addr: u8) -> Tcn75a<I2cMock> {
         let i2c = I2cMock::new(expectations);
@@ -304,10 +310,13 @@ mod tests {
 
     #[test]
     fn set_reg_ptr() {
-        let mut tcn = mk_tcn75a(&[
-            I2cTransaction::write(0x48, vec![0]),
-            I2cTransaction::write(0x48, vec![3])
-        ], 0x48);
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![0]),
+                I2cTransaction::write(0x48, vec![3]),
+            ],
+            0x48,
+        );
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.set_reg_ptr(3), Ok(()));
@@ -315,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected="Register pointer must be set to between 0 and 3 (inclusive).")]
+    #[should_panic(expected = "Register pointer must be set to between 0 and 3 (inclusive).")]
     fn reg_ptr_out_of_bounds() {
         let mut tcn = mk_tcn75a(&[], 0x48);
         tcn.set_reg_ptr(4).unwrap();
@@ -323,26 +332,30 @@ mod tests {
 
     #[test]
     fn set_reg_ptr_fail() {
-        let mut tcn = mk_tcn75a(&[
-            I2cTransaction::write(0x48, vec![0]),
-            I2cTransaction::write(0x48, vec![1]).with_error(MockError::Io(ErrorKind::Other)),
-            I2cTransaction::write(0x48, vec![1])
-        ], 0x48);
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![0]),
+                I2cTransaction::write(0x48, vec![1]).with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![1]),
+            ],
+            0x48,
+        );
 
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.reg, Some(0));
-        assert_eq!(tcn.set_reg_ptr(1), Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(
+            tcn.set_reg_ptr(1),
+            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other)))
+        );
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.set_reg_ptr(1), Ok(()));
         assert_eq!(tcn.reg, Some(1));
     }
 
     #[test]
-    #[should_panic(expected="i2c::write address mismatch")]
+    #[should_panic(expected = "i2c::write address mismatch")]
     fn wrong_addr() {
-        let mut tcn = mk_tcn75a(&[
-            I2cTransaction::write(0x47, vec![0]),
-        ], 0x48);
+        let mut tcn = mk_tcn75a(&[I2cTransaction::write(0x47, vec![0])], 0x48);
 
         tcn.set_reg_ptr(0).unwrap();
     }

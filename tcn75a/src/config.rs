@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_two_fields() {
-        let mut cfg : ConfigReg = Default::default();
+        let mut cfg: ConfigReg = Default::default();
         cfg.set_shutdown(Shutdown::Disable);
         cfg.set_comp_int(CompInt::Interrupt);
 

@@ -21,7 +21,12 @@ impl Write for UnimplementedHal {
 impl WriteRead for UnimplementedHal {
     type Error = ();
 
-    fn write_read(&mut self, _address: u8, _bytes: &[u8], _buffer: &mut [u8]) -> Result<(), Self::Error> {
+    fn write_read(
+        &mut self,
+        _address: u8,
+        _bytes: &[u8],
+        _buffer: &mut [u8],
+    ) -> Result<(), Self::Error> {
         Err(())
     }
 }

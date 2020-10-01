@@ -69,7 +69,7 @@ pub enum LimitError {
     /** The Limit-Set value provided does not fit in a 9-bit signed integer. */
     HighOutOfRange,
     /** The Hysteresis value is greater than _or equal to_ the Limit-Set value provided. */
-    LowExceedsHigh
+    LowExceedsHigh,
 }
 
 impl TryFrom<(i16, i16)> for Limits {
@@ -96,7 +96,6 @@ impl From<Limits> for (i16, i16) {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,9 +109,21 @@ mod tests {
 
     #[test]
     fn test_limit_err() {
-        assert_eq!(<Limits as TryFrom<(i16, i16)>>::try_from((-257, 256)), Err(LimitError::BothOutOfRange));
-        assert_eq!(<Limits as TryFrom<(i16, i16)>>::try_from((0, 256)), Err(LimitError::HighOutOfRange));
-        assert_eq!(<Limits as TryFrom<(i16, i16)>>::try_from((-257, 0)), Err(LimitError::LowOutOfRange));
-        assert_eq!(<Limits as TryFrom<(i16, i16)>>::try_from((1, -1)), Err(LimitError::LowExceedsHigh));
+        assert_eq!(
+            <Limits as TryFrom<(i16, i16)>>::try_from((-257, 256)),
+            Err(LimitError::BothOutOfRange)
+        );
+        assert_eq!(
+            <Limits as TryFrom<(i16, i16)>>::try_from((0, 256)),
+            Err(LimitError::HighOutOfRange)
+        );
+        assert_eq!(
+            <Limits as TryFrom<(i16, i16)>>::try_from((-257, 0)),
+            Err(LimitError::LowOutOfRange)
+        );
+        assert_eq!(
+            <Limits as TryFrom<(i16, i16)>>::try_from((1, -1)),
+            Err(LimitError::LowExceedsHigh)
+        );
     }
 }
