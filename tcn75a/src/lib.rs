@@ -212,18 +212,11 @@ where
         }
     }
 
-    pub fn config_reg(&self) -> ConfigRegProxy {
+    pub fn config_reg(&self) -> ConfigReg {
         todo!()
     }
 
     pub fn set_config_reg(&mut self, _reg: u8) {
-        todo!()
-    }
-
-    pub fn update_config_reg<U>(&mut self, _reg: U)
-    where
-        U: Into<ConfigReg>,
-    {
         todo!()
     }
 
