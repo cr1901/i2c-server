@@ -23,7 +23,7 @@ operation is possible at the cost of performance, but not implemented.
 
 use core::convert::TryFrom;
 use core::result::Result;
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal::blocking::i2c::{Read, Write};
 
 mod config;
 pub use config::*;
@@ -43,7 +43,7 @@ controller.
 */
 pub struct Tcn75a<T>
 where
-    T: Read + Write + WriteRead,
+    T: Read + Write,
 {
     ctx: T,
     address: u8,
@@ -98,7 +98,7 @@ pub type Error<T> = Tcn75aError<<T as Read>::Error, <T as Write>::Error>;
 
 impl<T> Tcn75a<T>
 where
-    T: Read + Write + WriteRead,
+    T: Read + Write,
 {
     /** Initialize all the data required to read and write a TCN75A on an I2C bus.
 
