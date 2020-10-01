@@ -64,7 +64,11 @@ pub trait ConfigRegField: private::Sealed + Into<u8> {
 }
 
 macro_rules! impl_field {
-    ( $type:ident, $width:expr, $offset:expr, $first:ident $(, $subseq:ident )* ) => {
+    ( $doc:expr, $type:ident, $width:expr, $offset:expr, $first:ident $(, $subseq:ident )* ) => {
+        #[doc = $doc]
+        #[doc = " bit(s) in the Sensor Configuration Register.\n"]
+        #[doc = "All Sensor Configuration Register `enums` can be `BitOr`'d together to "]
+        #[doc = "set or modify the register in a single write."]
         #[repr(u8)]
         pub enum $type {
             $first = 0,
@@ -98,12 +102,12 @@ macro_rules! impl_field {
     }
 }
 
-impl_field!(OneShot, 1, 7, Disabled, Enabled);
-impl_field!(Resolution, 2, 5, Bits9, Bits10, Bits11, Bits12);
-impl_field!(FaultQueue, 2, 3, One, Two, Four, Six);
-impl_field!(AlertPolarity, 1, 2, ActiveLow, ActiveHigh);
-impl_field!(CompInt, 1, 1, Comparator, Interrupt);
-impl_field!(Shutdown, 1, 0, Disable, Enable);
+impl_field!("One-Shot", OneShot, 1, 7, Disabled, Enabled);
+impl_field!("ADC Resolution", Resolution, 2, 5, Bits9, Bits10, Bits11, Bits12);
+impl_field!("Fault Queue", FaultQueue, 2, 3, One, Two, Four, Six);
+impl_field!("Alert Polarity", AlertPolarity, 1, 2, ActiveLow, ActiveHigh);
+impl_field!("Comp/Int", CompInt, 1, 1, Comparator, Interrupt);
+impl_field!("Shutdown", Shutdown, 1, 0, Disable, Enable);
 
 mod private {
     pub trait Sealed {}
