@@ -22,6 +22,7 @@ operation is possible at the cost of performance, but not implemented.
 #![no_std]
 
 use core::convert::TryFrom;
+use core::convert::TryInto;
 use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write};
 
@@ -233,12 +234,32 @@ where
         }
     }
 
-    pub fn config_reg(&self) -> ConfigReg {
-        todo!()
+    pub fn config_reg(&mut self) -> Result<ConfigReg, Error<T>> {
+        let mut buf: [u8; 1] = [0u8; 1];
+
+        self.set_reg_ptr(0x01)?;
+        self.ctx
+            .read(self.address, &mut buf)
+            .map_err(|e| Tcn75aError::ReadError(e))?;
+
+        let buf_slice: &[u8] = &buf;
+        Ok(buf_slice.try_into().unwrap())
+        // Ok(buf.try_into().unwrap())
+        // Ok(&*buf.try_into().unwrap())
     }
 
-    pub fn set_config_reg(&mut self, _reg: u8) {
-        todo!()
+    pub fn set_config_reg(&mut self, cfg: ConfigReg) -> Result<(), Error<T>> {
+        let mut buf: [u8; 2] = [0u8; 2];
+
+        // Reg ptr
+        buf[0] = 0x01;
+        buf[1] = cfg.to_bytes()[0];
+
+        self.ctx
+            .write(self.address, &buf)
+            .map_err(|e| Tcn75aError::WriteError(e))?;
+        self.reg = Some(0x01);
+        Ok(())
     }
 
     pub fn limits(
@@ -281,6 +302,7 @@ where
             .map_err(|e| Tcn75aError::WriteError(e))?;
         self.reg = Some(0x02);
 
+        // Reg ptr
         buf[0] = 0x03;
         upper <<= 7;
         &buf[1..3].copy_from_slice(&upper.to_be_bytes());
