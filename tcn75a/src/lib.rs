@@ -424,6 +424,101 @@ mod tests {
     }
 
     #[test]
+    fn create_read_free() {
+        let mut tcn = mk_tcn75a(
+            &[
+                // Fake temp data
+                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
+                // Cache initialized.
+                I2cTransaction::read(0x48, vec![0x7f, 0x80]),
+            ],
+            0x48,
+        );
+
+        let i2c = tcn.free();
+        let tcn = Tcn75a::new(i2c, 0x49);
+        todo!()
+    }
+
+    #[test]
+    fn write_read_config() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b01100000]),
+                I2cTransaction::read(0x48, vec![0b01100000]),
+                // Fake temp data
+                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
+                // Cached value doesn't match.
+                I2cTransaction::read(0x48, vec![1, 0b01100000]),
+                // Cache value matches.
+                I2cTransaction::read(0x48, vec![0b01100000]),
+                // Cache matches, but write transaction.
+                I2cTransaction::write(0x48, vec![1, 0b10000101]),
+            ],
+            0x48,
+        );
+
+        todo!()
+    }
+
+    #[test]
+    fn read_error_cached() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b10000101]),
+                // Cache value reset on read error.
+                I2cTransaction::read(0x48, vec![0b10000101])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::read(0x48, vec![1, 0b10000101]),
+                // Cache behavior back to normal.
+                I2cTransaction::read(0x48, vec![1, 0b10000101]),
+            ],
+            0x48,
+        );
+
+        todo!()
+    }
+
+    #[test]
+    fn read_error_uncached() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b10000101]),
+                // Fake temp data.
+                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
+                // Check that cache remains unset on read error.
+                I2cTransaction::read(0x48, vec![1, 0b10000101])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::read(0x48, vec![1, 0b10000101]),
+                // Cache behavior back to normal.
+                I2cTransaction::read(0x48, vec![0b10000101]),
+            ],
+            0x48,
+        );
+
+        todo!()
+    }
+
+    #[test]
+    fn write_error_recover() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b10000101]),
+                // Cache value reset on read error.
+                I2cTransaction::write(0x48, vec![1, 0b01100000])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::read(0x48, vec![1, 0b10000101]),
+                I2cTransaction::write(0x48, vec![1, 0b01100000]),
+                // Cache behavior back to normal.
+                I2cTransaction::read(0x48, vec![0b01100000]),
+            ],
+            0x48,
+        );
+
+        todo!()
+    }
+
+    #[test]
     fn write_read_limits() {
         let mut tcn = mk_tcn75a(
             &[
