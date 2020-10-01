@@ -49,6 +49,7 @@ where
     ctx: T,
     address: u8,
     reg: Option<u8>,
+    cfg: Option<ConfigReg>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -139,6 +140,7 @@ where
             ctx,
             address,
             reg: None,
+            cfg: None,
         }
     }
 
@@ -237,13 +239,26 @@ where
     pub fn config_reg(&mut self) -> Result<ConfigReg, Error<T>> {
         let mut buf: [u8; 1] = [0u8; 1];
 
-        self.set_reg_ptr(0x01)?;
-        self.ctx
-            .read(self.address, &mut buf)
-            .map_err(|e| Tcn75aError::ReadError(e))?;
+        if let Some(curr) = self.cfg {
+            return Ok(curr);
+        }
 
-        let buf_slice: &[u8] = &buf;
-        Ok(buf_slice.try_into().unwrap())
+        self.set_reg_ptr(0x01)?;
+        let cfg = self.ctx
+            .read(self.address, &mut buf)
+            .and_then(|_| {
+                let buf_slice: &[u8] = &buf;
+                let cfg = buf_slice.try_into().unwrap();
+
+                self.cfg = Some(cfg);
+                Ok(cfg)
+            })
+            .or_else(|e| {
+                self.cfg = None;
+                Err(Tcn75aError::ReadError(e))
+            })?;
+
+        Ok(cfg)
         // Ok(buf.try_into().unwrap())
         // Ok(&*buf.try_into().unwrap())
     }
@@ -257,8 +272,16 @@ where
 
         self.ctx
             .write(self.address, &buf)
-            .map_err(|e| Tcn75aError::WriteError(e))?;
+            .and_then(|_| {
+                self.cfg = Some(cfg);
+                Ok(())
+            })
+            .or_else(|e| {
+                self.cfg = None;
+                Err(Tcn75aError::WriteError(e))
+            })?;
         self.reg = Some(0x01);
+
         Ok(())
     }
 
@@ -310,6 +333,7 @@ where
             .write(self.address, &buf)
             .map_err(|e| Tcn75aError::WriteError(e))?;
         self.reg = Some(0x03);
+
         Ok(())
     }
 
