@@ -227,10 +227,12 @@ where
             .read(self.address, &mut temp)
             .map_err(|e| Tcn75aError::ReadError(e))?;
 
-        let temp_limited = i16::from_be_bytes(temp) >> 4;
+        let raw_temp = i16::from_be_bytes(temp);
 
-        if temp_limited >= -2048 && temp_limited < 2048 {
-            Ok(temp_limited)
+        // TODO: Vary the number of its checked based on Resolution and cache
+        // contents. Fall back to most conservative if unknown Resolution.
+        if (raw_temp & 0x000f) == 0 {
+            Ok(raw_temp >> 4)
         } else {
             Err(Tcn75aError::OutOfRange)
         }
@@ -427,17 +429,43 @@ mod tests {
     fn create_read_free() {
         let mut tcn = mk_tcn75a(
             &[
+                I2cTransaction::write(0x48, vec![0]),
                 // Fake temp data
-                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
+                I2cTransaction::read(0x48, vec![0x7f, 0x80]),
                 // Cache initialized.
                 I2cTransaction::read(0x48, vec![0x7f, 0x80]),
+                // Negative value (different addr).
+                I2cTransaction::write(0x49, vec![0]),
+                I2cTransaction::read(0x49, vec![0xff, 0xf0]),
             ],
             0x48,
         );
 
+        // We return raw value, not corrected for 9-12 bits (divide by 16 in all cases to
+        // get Celsius temp).
+        assert_eq!(tcn.temperature(), Ok(2040));
+        assert_eq!(tcn.temperature(), Ok(2040));
+
         let i2c = tcn.free();
-        let tcn = Tcn75a::new(i2c, 0x49);
-        todo!()
+        let mut tcn = Tcn75a::new(i2c, 0x49);
+        assert_eq!(tcn.address, 0x49);
+        assert_eq!(tcn.reg, None);
+        assert_eq!(tcn.cfg, None);
+
+        assert_eq!(tcn.temperature(), Ok(-1));
+    }
+
+    #[test]
+    fn read_invalid() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![0]),
+                I2cTransaction::read(0x48, vec![0x80, 0x01]),
+            ],
+            0x48,
+        );
+
+        assert_eq!(tcn.temperature(), Err(Tcn75aError::OutOfRange));
     }
 
     #[test]
