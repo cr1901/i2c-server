@@ -43,6 +43,7 @@ assert_eq!(orig, restored);
 [`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from
 [`From`]: https://doc.rust-lang.org/nightly/core/convert/trait.From.html
 */
+// TODO: Limits::new().
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Limits(i16, i16);
 

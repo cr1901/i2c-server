@@ -230,7 +230,8 @@ where
         let raw_temp = i16::from_be_bytes(temp);
 
         // TODO: Vary the number of its checked based on Resolution and cache
-        // contents. Fall back to most conservative if unknown Resolution.
+        // contents. Fall back to most conservative (9Bits) if unknown
+        // Resolution.
         if (raw_temp & 0x000f) == 0 {
             Ok(raw_temp >> 4)
         } else {
@@ -360,7 +361,7 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{Tcn75a, Tcn75aError};
+    use super::{Tcn75a, Tcn75aError, ConfigReg, Resolution, OneShot, AlertPolarity, Shutdown};
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
@@ -373,6 +374,18 @@ mod tests {
         tcn
     }
 
+    fn mk_cfg_regs() -> (ConfigReg, ConfigReg) {
+        let mut cfg1 = ConfigReg::new();
+        cfg1.set_resolution(Resolution::Bits12);
+
+        let mut cfg2 = ConfigReg::new();
+        cfg2.set_one_shot(OneShot::Enabled);
+        cfg2.set_alert_polarity(AlertPolarity::ActiveHigh);
+        cfg2.set_shutdown(Shutdown::Enable);
+
+        (cfg1, cfg2)
+    }
+
     #[test]
     fn set_reg_ptr() {
         let mut tcn = mk_tcn75a(
@@ -383,6 +396,8 @@ mod tests {
             0x48,
         );
 
+        assert_eq!(tcn.set_reg_ptr(0), Ok(()));
+        // Already cached- no I2C write.
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.set_reg_ptr(3), Ok(()));
         assert_eq!(tcn.reg, Some(3));
@@ -442,7 +457,8 @@ mod tests {
         );
 
         // We return raw value, not corrected for 9-12 bits (divide by 16 in all cases to
-        // get Celsius temp).
+        // get Celsius temp). TODO: Possibly make newtype Temperature(i16) or
+        // Temperature(i16, Resolution)?
         assert_eq!(tcn.temperature(), Ok(2040));
         assert_eq!(tcn.temperature(), Ok(2040));
 
@@ -474,68 +490,120 @@ mod tests {
             &[
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 I2cTransaction::read(0x48, vec![0b01100000]),
-                // Fake temp data
-                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
+            ],
+            0x48,
+        );
+
+        let (cfg1, _) = mk_cfg_regs();
+
+        // Set the config register and read it back.
+        assert_eq!(tcn.cfg, None);
+        assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
+        assert_eq!(tcn.cfg, Some(cfg1));
+        assert_eq!(tcn.config_reg(), Ok(cfg1));
+        assert_eq!(tcn.cfg, Some(cfg1));
+    }
+
+    #[test]
+    fn read_config_cached() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b01100000]),
+                // Fake reg set.
+                I2cTransaction::write(0x48, vec![0]),
                 // Cached value doesn't match.
-                I2cTransaction::read(0x48, vec![1, 0b01100000]),
+                I2cTransaction::write(0x48, vec![1]),
+                I2cTransaction::read(0x48, vec![0b01100000]),
                 // Cache value matches.
                 I2cTransaction::read(0x48, vec![0b01100000]),
+            ],
+            0x48,
+        );
+
+        // All cfg reg tests have the same initial write as write_read_config().
+        let (cfg1, _) = mk_cfg_regs();
+        tcn.set_config_reg(cfg1).unwrap();
+
+        // Change reg ptr, then reread the config reg twice.
+        assert_eq!(tcn.set_reg_ptr(0), Ok(()));
+        assert_eq!(tcn.config_reg(), Ok(cfg1));
+        assert_eq!(tcn.cfg, Some(cfg1));
+        assert_eq!(tcn.config_reg(), Ok(cfg1));
+        assert_eq!(tcn.cfg, Some(cfg1));
+    }
+
+    #[test]
+    fn write_new_config_data() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 // Cache matches, but write transaction.
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
+                // TODO: Test as-if fake multi-controller I2C bus.
+                // I2cTransaction::read(0x48, vec![0b00000000]),
             ],
             0x48,
         );
 
-        todo!()
+        let (cfg1, cfg2) = mk_cfg_regs();
+        tcn.set_config_reg(cfg1).unwrap();
+
+        // Write new data to config reg.
+        assert_eq!(tcn.set_config_reg(cfg2), Ok(()));
+        assert_eq!(tcn.cfg, Some(cfg2));
+        // Read data changed from underneath us!
+        // assert_eq!(tcn.config_reg(), Ok(cfg_new));
+        // assert_eq!(tcn.cfg, Some(cfg_new));
     }
 
+
     #[test]
-    fn read_error_cached() {
+    fn write_read_error_cached() {
         let mut tcn = mk_tcn75a(
             &[
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
-                // Cache value reset on read error.
+                // Cache value reset on write error.
+                I2cTransaction::write(0x48, vec![1, 0b01100000])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                // Dummy write to set reg pointer that dies with error.
+                I2cTransaction::write(0x48, vec![0])
+                    .with_error(MockError::Io(ErrorKind::Other)),
+                // Read error w/ cache set should be impossible for now.
+                I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b10000101])
                     .with_error(MockError::Io(ErrorKind::Other)),
-                I2cTransaction::read(0x48, vec![1, 0b10000101]),
-                // Cache behavior back to normal.
-                I2cTransaction::read(0x48, vec![1, 0b10000101]),
-            ],
-            0x48,
-        );
-
-        todo!()
-    }
-
-    #[test]
-    fn read_error_uncached() {
-        let mut tcn = mk_tcn75a(
-            &[
-                I2cTransaction::write(0x48, vec![1, 0b10000101]),
-                // Fake temp data.
-                I2cTransaction::read(0x48, vec![0, 0x7f, 0x80]),
-                // Check that cache remains unset on read error.
-                I2cTransaction::read(0x48, vec![1, 0b10000101])
-                    .with_error(MockError::Io(ErrorKind::Other)),
-                I2cTransaction::read(0x48, vec![1, 0b10000101]),
-                // Cache behavior back to normal.
+                // Setting the register pointer cache didn't error, so should be skipped.
                 I2cTransaction::read(0x48, vec![0b10000101]),
+                I2cTransaction::write(0x48, vec![1, 0b01100000]),
+                // Cache behavior back to normal- no read here.
             ],
             0x48,
         );
 
-        todo!()
+        let (cfg1, cfg2) = mk_cfg_regs();
+        tcn.set_config_reg(cfg2).unwrap();
+
+        assert_eq!(tcn.set_config_reg(cfg1),
+            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(tcn.cfg, None);
+        assert_eq!(tcn.set_reg_ptr(0),
+            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(tcn.config_reg(),
+            Err(Tcn75aError::ReadError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(tcn.config_reg(), Ok(cfg2));
+        assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
+        assert_eq!(tcn.config_reg(), Ok(cfg1));
     }
 
     #[test]
-    fn write_error_recover() {
+    fn write_error_then_read() {
         let mut tcn = mk_tcn75a(
             &[
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
                 // Cache value reset on read error.
                 I2cTransaction::write(0x48, vec![1, 0b01100000])
                     .with_error(MockError::Io(ErrorKind::Other)),
-                I2cTransaction::read(0x48, vec![1, 0b10000101]),
+                I2cTransaction::read(0x48, vec![0b10000101]),
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 // Cache behavior back to normal.
                 I2cTransaction::read(0x48, vec![0b01100000]),
@@ -543,7 +611,13 @@ mod tests {
             0x48,
         );
 
-        todo!()
+        let (cfg1, cfg2) = mk_cfg_regs();
+        tcn.set_config_reg(cfg2).unwrap();
+        tcn.set_config_reg(cfg1).unwrap_err();
+
+        assert_eq!(tcn.config_reg(), Ok(cfg2));
+        assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
+        assert_eq!(tcn.config_reg(), Ok(cfg1));
     }
 
     #[test]
