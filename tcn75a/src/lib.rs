@@ -247,7 +247,8 @@ where
         }
 
         self.set_reg_ptr(0x01)?;
-        let cfg = self.ctx
+        let cfg = self
+            .ctx
             .read(self.address, &mut buf)
             .and_then(|_| {
                 let buf_slice: &[u8] = &buf;
@@ -361,7 +362,7 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{Tcn75a, Tcn75aError, ConfigReg, Resolution, OneShot, AlertPolarity, Shutdown};
+    use super::{AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
@@ -556,7 +557,6 @@ mod tests {
         // assert_eq!(tcn.cfg, Some(cfg_new));
     }
 
-
     #[test]
     fn write_read_error_cached() {
         let mut tcn = mk_tcn75a(
@@ -566,8 +566,7 @@ mod tests {
                 I2cTransaction::write(0x48, vec![1, 0b01100000])
                     .with_error(MockError::Io(ErrorKind::Other)),
                 // Dummy write to set reg pointer that dies with error.
-                I2cTransaction::write(0x48, vec![0])
-                    .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![0]).with_error(MockError::Io(ErrorKind::Other)),
                 // Read error w/ cache set should be impossible for now.
                 I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b10000101])
@@ -583,13 +582,19 @@ mod tests {
         let (cfg1, cfg2) = mk_cfg_regs();
         tcn.set_config_reg(cfg2).unwrap();
 
-        assert_eq!(tcn.set_config_reg(cfg1),
-            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(
+            tcn.set_config_reg(cfg1),
+            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
+        );
         assert_eq!(tcn.cfg, None);
-        assert_eq!(tcn.set_reg_ptr(0),
-            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other))));
-        assert_eq!(tcn.config_reg(),
-            Err(Tcn75aError::ReadError(MockError::Io(ErrorKind::Other))));
+        assert_eq!(
+            tcn.set_reg_ptr(0),
+            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other)))
+        );
+        assert_eq!(
+            tcn.config_reg(),
+            Err(Tcn75aError::ReadError(MockError::Io(ErrorKind::Other)))
+        );
         assert_eq!(tcn.config_reg(), Ok(cfg2));
         assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
