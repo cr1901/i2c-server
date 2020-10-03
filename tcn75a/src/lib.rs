@@ -505,7 +505,31 @@ where
 
     No I2C transactions occur in this function. The wrapped [`embedded_hal`] instance is
     returned. You can call [`Tcn75a::new`] again with the returned instance to create a new
-    `Tcn75a` struct associated with the same device (with undefined caches).
+    `Tcn75a` struct associated with the same (or different) TCN75A device with undefined caches.
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::i2cdev::linux::LinuxI2CError;
+    # fn main() -> Result<(), LinuxI2CError> {
+    # use tcn75a::Tcn75a;
+    # use linux_embedded_hal::I2cdev;
+    # let i2c = I2cdev::new("/dev/i2c-1")?;
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    let i2c = tcn.free(); // Get I2C HAL wrapper back.
+    // ... Use the I2C wrapper to talk to other devices.
+    let mut tcn = Tcn75a::new(i2c, 0x48); // Then reattach.
+    // ... Reinitialize config registers, etc.
+    # Ok::<(), LinuxI2CError>(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
 
     [`embedded_hal`]: ../embedded_hal
     [`Tcn75a::new`]: ../struct.Tcn75a.html#method.new
