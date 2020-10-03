@@ -365,12 +365,12 @@ where
     # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
-    let mut cfg = ConfigReg::new();
+    let mut cfg = tcn.config_reg()?; // Let's change some settings!
     // Get higher resolution samples at the cost of longer time to sample.
     cfg.set_resolution(Resolution::Bits12);
     // 6 conversion cycles before asserting alert.
     cfg.set_fault_queue(FaultQueue::Six);
-    tcn.set_config_reg(cfg)?;
+    tcn.set_config_reg(cfg)?; // This will only modify resolution and fault queue.
     # Ok(())
     # }
     # } else {
@@ -422,6 +422,52 @@ where
     }
 
     /** Sets the current configuration of the TCN75A.
+
+    The contents of the Sensor Configuration Register are written using a single
+    write transaction, which sets the register pointer and writes the the Sensor Configuration
+    Register.
+
+    The contents of the Sensor Configuration Register are cached; no I2C transaction occurs
+    if the config cache contains a previously-read value.
+
+    For an `Ok` variant return value, the register pointer cache points to register 1, and
+    the sensor config cache is updated to the written value. On `Err`, the caches are unmodified.
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, CompInt, Limits};
+    # use std::convert::TryInto;
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    let mut cfg = ConfigReg::new();
+    let limits : Limits = (25*2, 30*2).try_into().unwrap();
+    // Attached to a microcontroller, use Interrupt mode when temperature
+    // exceeds/falls below limits (alert pin asserts when temp goes above 30C,
+    // and then again when temp falls below 25C).
+    cfg.set_comp_int(CompInt::Interrupt);
+    tcn.set_config_reg(cfg)?;
+    tcn.set_limits(limits)?;
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    # Errors
+
+    * [`Tcn75aError::WriteError`]: Returned if the I2C write to set the config register failed.
+      The register pointer and sensor config caches are flushed.
+
+    [`Tcn75aError::WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     pub fn set_config_reg(&mut self, cfg: ConfigReg) -> Result<(), Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
