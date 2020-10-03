@@ -56,7 +56,7 @@ where
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 pub enum Tcn75aError<R, W> {
     /** A temperature value was read successfully, but some bits were set that should always
-    read as zero for the given resolution. */
+    read as zero. */
     OutOfRange,
     /** The temperature limit registers were read successfully, but the values read were invalid
     (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid.
@@ -102,7 +102,7 @@ impl<T> Tcn75a<T>
 where
     T: Read + Write,
 {
-    /** Initialize all the data required to read and write a TCN75A on an I2C bus.
+    /** Initializes all the data required to read and write a TCN75A on an I2C bus.
 
     No I2C transactions occur in this function.
 
@@ -144,7 +144,7 @@ where
         }
     }
 
-    /** Set the internal TCN75A register pointer to the specified address.
+    /** Sets the internal TCN75A register pointer to the specified address.
 
     All functions of [`Tcn75a`] that read or write registers will automatically set the register
     pointer beforehand. The previous register pointer value set is cached. It may be useful to
@@ -166,10 +166,12 @@ where
     # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
+    // All subsequent examples should assume tcn is a `Tcn75a`
+    // struct created previously.
     // Set the register pointer ahead of time.
-    // Then read temp values as fast as possible.
     tcn.set_reg_ptr(0)?;
     for _ in 0..10 {
+        // Then read temp values as fast as possible.
         println!("Temperature is: {}", tcn.temperature()?);
     }
     # Ok(())
@@ -217,6 +219,99 @@ where
             })
     }
 
+    /* Future API? The value returned is an `i16` holding either a 9-bit, 10-bit, 11-bit, or
+    12-bit temperature value that represents a `Q8.1` (0.5 degree resolution), `Q8.2` (0.25),
+    `Q8.3` (0.125), or `Q8.4` (0.0625) fixed-point number in [`Q` format]. */
+
+    /** Gets a raw (9-12 bit) temperature reading from the TCN75A.
+
+    Returns the temperature using:
+
+    * An I2C write transaction to set the register pointer (if necessary), and
+    * An I2C read transaction to read the Ambient Temperature Register.
+
+    For any `Ok` or `Err` return variant besides [`Tcn75aError::RegPtrError`], the register
+    pointer cache will point to register 0 after this function returns. The sensor config
+    cache is untouched.
+
+    Currently the [`temperature`] function does not use the [`Resolution`] data in the config
+    cache. Each measurement returned is treated as a [`Q12.4`][`Q` format] number with the
+    most-significant 4 bits unused, and some of the least-significant 4 bits _possibly_ unused.
+    For instance, the same temperature reading at different resolutions might be as follows:
+
+    <table>
+        <thead>
+            <tr><th><a href="./enum.Resolution.html"><code>Resolution</code></a></th><th>Temp (C)</th><th>Bit Representation</th></tr>
+        </thead>
+        </tbody>
+            <tr>
+                <td><a href="enum.Resolution.html#variant.Bits9"><code>Bits9</code></a></td>
+                <td>30.5</td>
+                <td><code>0b0000_01001000_1000</code> (488)</td>
+            </tr>
+            <tr>
+                <td><a href="enum.Resolution.html#variant.Bits10"><code>Bits10</code></a>
+                </td><td>30.5 </td>
+                <td><code>0b0000_01001000_1000</code> (488)</td>
+            </tr>
+            <tr>
+                <td><a href="enum.Resolution.html#variant.Bits11"><code>Bits11</code></a>
+                </td><td>30.375</td>
+                <td><code>0b0000_01001000_0110</code> (486)</td>
+            </tr>
+            <tr>
+                <td><a href="enum.Resolution.html#variant.Bits12"><code>Bits12</code></a>
+                </td><td>30.4375</td>
+                <td><code>0b0000_01001000_0111</code> (487)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution};
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    // Assume `tcn` and the controller were _just_ powered on.
+    // 9-bit resolution (0.5 degrees).
+    let temp = tcn.temperature()?;
+    println!("Temperature is {:.1} degrees Celsius", (temp as f32)/16.0f32);
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    # Errors
+
+    * [`Tcn75aError::RegPtrError`]: Returned if the I2C write to set the register pointer failed.
+      The register pointer cache is flushed.
+    * [`Tcn75aError::ReadError`]: Returned if the I2C read to get the temperature register
+      contents failed.
+    * [`Tcn75aError::OutOfRange`]: The I2C read succeeded, but some bits which _must_ be 0
+      _regardless_ of resolution were 1.
+
+      Currently an `OutOfRange` error is conservative, because
+      [`temperature`] does not use cached [`Resolution`] data; it will not detect e.g. "bits set
+      that indicate a 12-bit value, but the [`Resolution`] is [`Resolution::Bits9`].
+
+    [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
+    [`Q` format]: https://en.wikipedia.org/wiki/Q_(number_format)
+    [`temperature`]: ./struct.Tcn75a.html#method.temperature
+    [`Resolution`]: ./enum.Resolution.html
+    [`Tcn75aError::ReadError`]: ./enum.Tcn75aError.html#variant.ReadError
+    [`Tcn75aError::OutOfRange`]: ./enum.Tcn75aError.html#variant.OutOfRange
+    [`Resolution::Bits9`]: ./enum.Resolution.html#variant.Bits9
+    */
     pub fn temperature(
         &mut self,
     ) -> Result<i16, Error<T>> {
@@ -239,6 +334,65 @@ where
         }
     }
 
+    /** Gets the current configuration of the TCN75A.
+
+    The contents of the Sensor Configuration Register are returned using:
+
+    * An I2C write transaction to set the register pointer (if necessary), and
+    * An I2C read transaction to read the Sensor Configuration Register (if necessary).
+
+    The contents of the Sensor Configuration Register are cached; no I2C transaction occurs
+    if the config cache contains a previously-read value.
+
+    For an `Ok` variant return value, the cache behavior varies:
+
+    * If the config cache is valid, neither the register pointer or the sensor config cache
+      are touched by this function.
+    * If the config cache is not valid, an `Ok` return value means the register cache points
+      to register 1, and the sensor config cache is updated with the [`ConfigReg`] value read
+      from the bus (the same value wrapped by `Ok`).
+
+    For other cache behavior, see [`Errors`].
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution, FaultQueue};
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    let mut cfg = ConfigReg::new();
+    // Get higher resolution samples at the cost of longer time to sample.
+    cfg.set_resolution(Resolution::Bits12);
+    // 6 conversion cycles before asserting alert.
+    cfg.set_fault_queue(FaultQueue::Six);
+    tcn.set_config_reg(cfg)?;
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    # Errors
+
+    * [`Tcn75aError::RegPtrError`]: Returned if the I2C write to set the register pointer failed.
+      The register pointer cache is flushed. The config register cache is untouched.
+    * [`Tcn75aError::ReadError`]: Returned if the I2C read to get the config register
+      contents failed. The register pointer cache is set to register 1. The config register
+      cache is flushed.
+
+    [`ConfigReg`]: ./struct.ConfigReg.html
+    [`Errors`]: ./struct.Tcn75a.html#errors-2
+    [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
+    [`Tcn75aError::ReadError`]: ./enum.Tcn75aError.html#variant.ReadError
+    */
     pub fn config_reg(&mut self) -> Result<ConfigReg, Error<T>> {
         let mut buf: [u8; 1] = [0u8; 1];
 
@@ -267,6 +421,8 @@ where
         // Ok(&*buf.try_into().unwrap())
     }
 
+    /** Sets the current configuration of the TCN75A.
+    */
     pub fn set_config_reg(&mut self, cfg: ConfigReg) -> Result<(), Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
 
@@ -289,6 +445,8 @@ where
         Ok(())
     }
 
+    /** Retrieves the lower and upper temperature limits before the TCN75A asserts an alarm.
+    */
     pub fn limits(
         &mut self,
     ) -> Result<Limits, Error<T>> {
@@ -312,6 +470,8 @@ where
         TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
     }
 
+    /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts an alarm.
+    */
     pub fn set_limits(
         &mut self,
         limits: Limits,
