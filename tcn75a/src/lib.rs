@@ -219,7 +219,7 @@ where
 
     pub fn temperature(
         &mut self,
-    ) -> Result<i16, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    ) -> Result<i16, Error<T>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
@@ -291,7 +291,7 @@ where
 
     pub fn limits(
         &mut self,
-    ) -> Result<Limits, Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    ) -> Result<Limits, Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
         let mut lim = (0i16, 0i16);
 
@@ -315,7 +315,7 @@ where
     pub fn set_limits(
         &mut self,
         limits: Limits,
-    ) -> Result<(), Tcn75aError<<T as Read>::Error, <T as Write>::Error>> {
+    ) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
         let (mut lower, mut upper) = limits.into();
 
