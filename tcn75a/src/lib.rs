@@ -148,8 +148,8 @@ where
 
     All functions of [`Tcn75a`] that read or write registers will automatically set the register
     pointer beforehand. The previous register pointer value set is cached. It may be useful to
-    manually set the register yourself some time _before_ you need to perform a write or read to
-    the pointed-to register.
+    manually set the register yourself some time _before_ you need to perform repeated _reads_
+    from the pointed-to register.
 
     # Arguments
 
@@ -431,7 +431,7 @@ where
     if the config cache contains a previously-read value.
 
     For an `Ok` variant return value, the register pointer cache points to register 1, and
-    the sensor config cache is updated to the written value. On `Err`, the caches are unmodified.
+    the sensor config cache is updated to the written value. On `Err`, the caches are flushed.
 
     # Examples
 
@@ -483,6 +483,7 @@ where
                 Ok(())
             })
             .or_else(|e| {
+                self.reg = None;
                 self.cfg = None;
                 Err(Tcn75aError::WriteError(e))
             })?;
@@ -523,7 +524,7 @@ where
     transactions (one for each). The contents of the Hysteresis and Limit-Set Registers
     are not cached.
 
-    For an `Ok` variant return value, the register pointer cache points to register 3. 
+    For an `Ok` variant return value, the register pointer cache points to register 3.
 
     # Examples
 
@@ -883,9 +884,10 @@ mod tests {
         let mut tcn = mk_tcn75a(
             &[
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
-                // Cache value reset on read error.
+                // Cache value reset on write error.
                 I2cTransaction::write(0x48, vec![1, 0b01100000])
                     .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b10000101]),
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 // Cache behavior back to normal.
