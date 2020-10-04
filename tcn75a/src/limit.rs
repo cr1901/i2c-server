@@ -2,10 +2,15 @@ use core::convert::{From, TryFrom};
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
 
-The Hysteresis and Limit-Set register provide the lower and upper bounds respectively of
-the temperature range that the TCN75A should monitor. Temperatures outside this range will
-assert the alert pin on the TCN75A. Temperatures are represented as 9-bit signed integers, which
-corresponds to 0.5 degrees Celsius precision.
+The Hysteresis and Limit-Set registers provide the lower and upper bounds respectively of
+the temperature range that the TCN75A should monitor. When the temperature is above the value in
+Limit-Set Register, the alert pin will assert. The alert pin will _remain_ asserted until the
+temperature goes below the value in the Hysteresis register. Temperatures are represented as
+9-bit signed integers, which corresponds to 0.5 degrees Celsius precision.
+
+The silicon can tolerate swapped Hysteresis and Limit-Set registers, but to avoid potential
+confusing TCN75A behavior, this crate does not allow it. For rationale as to why the Hysteresis
+register is also a lower bound, see the [`set_limits`] documentation [examples].
 
 # Invariants
 
@@ -38,6 +43,8 @@ let restored = lims.into();
 assert_eq!(orig, restored);
 ```
 
+[`set_limits`]: ./struct.Tcn75a.html#method.set_limits
+[examples]: ./struct.Tcn75a.html#examples-5
 [`Limits`]: ./struct.Limits.html
 [`Tcn75a`]: ./struct.Tcn75a.html
 [`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from

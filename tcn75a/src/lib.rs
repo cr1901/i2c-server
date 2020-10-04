@@ -300,7 +300,7 @@ where
     * [`Tcn75aError::OutOfRange`]: The I2C read succeeded, but some bits which _must_ be 0
       _regardless_ of resolution were 1.
 
-      Currently an `OutOfRange` error is conservative, because
+      Currently an [`OutOfRange`][`Tcn75aError::OutOfRange`] error is conservative, because
       [`temperature`] does not use cached [`Resolution`] data; it will not detect e.g. "bits set
       that indicate a 12-bit value, but the [`Resolution`] is [`Resolution::Bits9`].
 
@@ -516,7 +516,55 @@ where
         TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
     }
 
-    /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts an alarm.
+    /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts
+    an alarm.
+
+    The contents of the Hysteresis and Limit-Set Registers are written using a two write
+    transactions (one for each). The contents of the Hysteresis and Limit-Set Registers
+    are not cached.
+
+    For an `Ok` variant return value, the register pointer cache points to register 3. 
+
+    # Examples
+
+    Although the silicon can tolerate a Hysteresis Register value which exceeds the Limit-Set
+    Register value, for simplicity, this crate [disallows] it.
+
+    To create a low temperature alert, treat an asserted alert pin _of either [polarity]_
+    as the operating-normally condition. When the temperature drops to below the value in
+    Hysteresis Register, the alert pin will deassert, indicating the temperature is too low and
+    the CPU should correct it. The alert pin will reassert when the temperature exceeds the value
+    in the Limit-Set Register, indicating the temperature is okay again.
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, AlertPolarity, Limits};
+    # use std::convert::TryInto;
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    let mut cfg = ConfigReg::new();
+    // 9-bit fixed-point numbers- 25.5C to 30C
+    let limits : Limits = (25*2 + 1, 30*2).try_into().unwrap();
+    // Asserted alert is default active-low at power-on reset.
+    // Let's still treat active-high as the "everything's okay" condition.
+    cfg.set_alert_polarity(AlertPolarity::ActiveHigh);
+    tcn.set_config_reg(cfg)?;
+    tcn.set_limits(limits)?;
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    [disallows]: ./struct.Limits.html
+    [polarity]: ./enum.AlertPolarity.html
     */
     pub fn set_limits(
         &mut self,
