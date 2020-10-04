@@ -493,6 +493,64 @@ where
     }
 
     /** Retrieves the lower and upper temperature limits before the TCN75A asserts an alarm.
+
+    The contents of the Hysteresis and Limit-Set Registers are returned using _two_ of:
+
+    * An I2C write transaction to set the register pointer (if necessary), and
+    * An I2C read transaction to read each register (always occurs).
+
+    For an `Ok` variant return value, the register pointer cache points to register 3. For
+    an `Err` variant return value, the register pointer cache's value _should not be relied
+    upon_. The sensor config cache is untouched by this function.
+
+    # Examples
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, AlertPolarity, Limits};
+    # use std::convert::TryInto;
+    # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    let mut cfg = ConfigReg::new();
+    // 9-bit fixed-point numbers- 25.5C to 30C
+    let limits = tcn.limits();
+    match limits {
+        Ok(lim) => {
+            # lim;
+            // ... Safe to continue
+        },
+        Err(e) => {
+            # e;
+            // ... Uh-oh! Use set_limits() to correct the value.
+        }
+    }
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    # Errors
+
+    * [`Tcn75aError::RegPtrError`]: Returned if the I2C write to set the register pointer for
+      _either_ of the above registers failed. The register pointer cache is flushed.
+    * [`Tcn75aError::ReadError`]: Returned if the I2C read to get _either_ of the above register
+      contents failed. The register pointer cache is set to register is either 2 or 3.
+    * [`Tcn75aError::LimitError`]: Both registers were read successfully, but violated invariants
+      assumed by this library. The [`LimitError`] contains the reason. The register pointer cache
+      is set to 3.
+
+    [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
+    [`Tcn75aError::ReadError`]: ./enum.Tcn75aError.html#variant.ReadError
+    [`Tcn75aError::LimitError`]: ./enum.Tcn75aError.html#variant.LimitError
+    [`LimitError`]: ./enum.LimitError.html
     */
     pub fn limits(
         &mut self,
@@ -566,8 +624,14 @@ where
     # }
     ```
 
+    # Errors
+
+    * [`Tcn75aError::WriteError`]: Returned if the I2C write to set _either_ the Hysteresis or
+      Limit-Set register failed. The register pointer cache is flushed.
+
     [disallows]: ./struct.Limits.html
     [polarity]: ./enum.AlertPolarity.html
+    [`Tcn75aError::WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     pub fn set_limits(
         &mut self,
@@ -584,6 +648,7 @@ where
         self.ctx
             .write(self.address, &buf)
             .or_else(|e| {
+                // TODO: PartialUpdate variant?
                 self.reg = None;
                 Err(Tcn75aError::WriteError(e))
             })?;
