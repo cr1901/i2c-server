@@ -423,7 +423,7 @@ where
 
     /** Sets the current configuration of the TCN75A.
 
-    The contents of the Sensor Configuration Register are written using a single
+    The contents of the Sensor Configuration Register are written using a single I2C
     write transaction, which sets the register pointer and writes the the Sensor Configuration
     Register.
 
@@ -520,11 +520,13 @@ where
     /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts
     an alarm.
 
-    The contents of the Hysteresis and Limit-Set Registers are written using a two write
+    The contents of the Hysteresis and Limit-Set Registers are written using two I2C write
     transactions (one for each). The contents of the Hysteresis and Limit-Set Registers
     are not cached.
 
-    For an `Ok` variant return value, the register pointer cache points to register 3.
+    For an `Ok` variant return value, the register pointer cache points to register 3. For
+    an `Err` variant return value, the register pointer cache is flushed. The sensor config
+    cache is untouched by this function.
 
     # Examples
 
@@ -581,8 +583,11 @@ where
 
         self.ctx
             .write(self.address, &buf)
-            .map_err(|e| Tcn75aError::WriteError(e))?;
-        self.reg = Some(0x02);
+            .or_else(|e| {
+                self.reg = None;
+                Err(Tcn75aError::WriteError(e))
+            })?;
+        self.reg = Some(0x02); // Needed?
 
         // Reg ptr
         buf[0] = 0x03;
@@ -590,7 +595,10 @@ where
         &buf[1..3].copy_from_slice(&upper.to_be_bytes());
         self.ctx
             .write(self.address, &buf)
-            .map_err(|e| Tcn75aError::WriteError(e))?;
+            .or_else(|e| {
+                self.reg = None;
+                Err(Tcn75aError::WriteError(e))
+            })?;
         self.reg = Some(0x03);
 
         Ok(())
@@ -930,6 +938,7 @@ mod tests {
                 I2cTransaction::write(0x48, vec![2, 0x5a, 0x00]),
                 I2cTransaction::write(0x48, vec![3, 0x5f, 0x00])
                     .with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![2]),
                 I2cTransaction::read(0x48, vec![0x5a, 0x00]),
                 I2cTransaction::write(0x48, vec![3]),
                 // Technically undefined value- don't actually care what the value is.
