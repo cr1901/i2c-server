@@ -312,9 +312,7 @@ where
     [`Tcn75aError::OutOfRange`]: ./enum.Tcn75aError.html#variant.OutOfRange
     [`Resolution::Bits9`]: ./enum.Resolution.html#variant.Bits9
     */
-    pub fn temperature(
-        &mut self,
-    ) -> Result<i16, Error<T>> {
+    pub fn temperature(&mut self) -> Result<i16, Error<T>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
@@ -552,9 +550,7 @@ where
     [`Tcn75aError::LimitError`]: ./enum.Tcn75aError.html#variant.LimitError
     [`LimitError`]: ./enum.LimitError.html
     */
-    pub fn limits(
-        &mut self,
-    ) -> Result<Limits, Error<T>> {
+    pub fn limits(&mut self) -> Result<Limits, Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
         let mut lim = (0i16, 0i16);
 
@@ -633,10 +629,7 @@ where
     [polarity]: ./enum.AlertPolarity.html
     [`Tcn75aError::WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
-    pub fn set_limits(
-        &mut self,
-        limits: Limits,
-    ) -> Result<(), Error<T>> {
+    pub fn set_limits(&mut self, limits: Limits) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
         let (mut lower, mut upper) = limits.into();
 
@@ -645,25 +638,21 @@ where
         lower <<= 7;
         &buf[1..3].copy_from_slice(&lower.to_be_bytes());
 
-        self.ctx
-            .write(self.address, &buf)
-            .or_else(|e| {
-                // TODO: PartialUpdate variant?
-                self.reg = None;
-                Err(Tcn75aError::WriteError(e))
-            })?;
+        self.ctx.write(self.address, &buf).or_else(|e| {
+            // TODO: PartialUpdate variant?
+            self.reg = None;
+            Err(Tcn75aError::WriteError(e))
+        })?;
         self.reg = Some(0x02); // Needed?
 
         // Reg ptr
         buf[0] = 0x03;
         upper <<= 7;
         &buf[1..3].copy_from_slice(&upper.to_be_bytes());
-        self.ctx
-            .write(self.address, &buf)
-            .or_else(|e| {
-                self.reg = None;
-                Err(Tcn75aError::WriteError(e))
-            })?;
+        self.ctx.write(self.address, &buf).or_else(|e| {
+            self.reg = None;
+            Err(Tcn75aError::WriteError(e))
+        })?;
         self.reg = Some(0x03);
 
         Ok(())
