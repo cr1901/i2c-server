@@ -10,6 +10,12 @@ the number of I2C transactions sent to the TCN75A via caching. Therefore, at
 present _this crate does not work with multicontroller I2C buses_, though it
 should be possible to add this at the cost of performance.
 
+## Dev Boards
+
+You can get a dev board for the `tcn75a` from Digilent called the [PMOD TMP3].
+If you don't have a microcontroller or FPGA board with a PMOD connector, the
+PMOD TMP3 can be connected to a breadboard using a [PMOD DIP].
+
 ## License
 
 Licensed under either of
@@ -27,5 +33,7 @@ dual licensed as above, without any additional terms or conditions.
 
 [Embedded HAL]: https://github.com/rust-embedded/embedded-hal
 [TCN75A]: https://www.microchip.com/wwwproducts/TCN75A
+[PMOD TMP3]: https://store.digilentinc.com/pmod-tmp3-digital-temperature-sensor/
+[PMOD DIP]: https://store.digilentinc.com/pmod-dip-dip-to-12-pin-pmod-adapter/
 [LICENSE-APACHE]: http://www.apache.org/licenses/LICENSE-2.0
 [LICENSE-MIT]: http://opensource.org/licenses/MIT
