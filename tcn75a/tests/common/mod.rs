@@ -1,4 +1,5 @@
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use cfg_if::cfg_if;
 
 pub struct UnimplementedHal;
 
@@ -31,7 +32,7 @@ impl WriteRead for UnimplementedHal {
     }
 }
 
-cfg_if::cfg_if! {
+cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
         use linux_embedded_hal::I2cdev;
         pub type HalImpl = I2cdev;
@@ -41,7 +42,7 @@ cfg_if::cfg_if! {
 }
 
 pub fn setup() -> HalImpl {
-    cfg_if::cfg_if! {
+    cfg_if! {
         if #[cfg(any(target_os = "linux", target_os = "android"))] {
             // FIXME: Should integration tests panic?
             I2cdev::new("/dev/i2c-1").unwrap()
