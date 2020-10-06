@@ -94,8 +94,7 @@ fn main() -> Result<(), PlotError> {
     let mut data: Vec<f32> = Vec::new();
 
     let bar = ProgressBar::new(args.num);
-    bar.set_style(ProgressStyle::default_bar()
-        .progress_chars("#>-"));
+    bar.set_style(ProgressStyle::default_bar().progress_chars("#>-"));
 
     let mut cfg = ConfigReg::new();
     let sample_time: u16;
@@ -104,27 +103,30 @@ fn main() -> Result<(), PlotError> {
         9 => {
             cfg.set_resolution(Resolution::Bits9);
             sample_time = 30;
-        },
+        }
         10 => {
             cfg.set_resolution(Resolution::Bits10);
             sample_time = 60;
-        },
+        }
         11 => {
             cfg.set_resolution(Resolution::Bits11);
             sample_time = 120;
-        },
+        }
         12 => {
             cfg.set_resolution(Resolution::Bits12);
             sample_time = 240;
-        },
-        _ => unreachable!()
+        }
+        _ => unreachable!(),
     }
     tcn.set_config_reg(cfg)?;
 
     tcn.set_reg_ptr(0)?;
-    println!("Capturing data (1 sample every {} milliseconds)", sample_time);
+    println!(
+        "Capturing data (1 sample every {} milliseconds)",
+        sample_time
+    );
     for i in 0..args.num {
-        let temp = (tcn.temperature()? as f32)/16.0f32;
+        let temp = (tcn.temperature()? as f32) / 16.0f32;
         points.push((i as f32, temp));
         data.push(temp);
 
@@ -133,14 +135,20 @@ fn main() -> Result<(), PlotError> {
     }
     bar.finish();
 
-    println!("\ny = {} temperature samples (1 every {} millisconds)", args.num, sample_time);
-    Chart::new(120, 60, 0.0, args.num as f32).lineplot(&Shape::Steps(&points)).display();
+    println!(
+        "\ny = {} temperature samples (1 every {} millisconds)",
+        args.num, sample_time
+    );
+    Chart::new(120, 60, 0.0, args.num as f32)
+        .lineplot(&Shape::Steps(&points))
+        .display();
 
     let json_str = serde_json::to_string(&data).unwrap();
 
     if let Some(out) = args.out_file {
         let mut file = File::create(out).map_err(|e| PlotError::OutputError(Box::new(e)))?;
-        file.write_all(json_str.as_bytes()).map_err(|e| PlotError::OutputError(Box::new(e)))?;
+        file.write_all(json_str.as_bytes())
+            .map_err(|e| PlotError::OutputError(Box::new(e)))?;
     } else {
         println!("{}", json_str);
     }
@@ -152,6 +160,4 @@ fn main() -> Result<(), PlotError> {
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
-fn main() {
-
-}
+fn main() {}

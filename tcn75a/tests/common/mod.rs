@@ -1,5 +1,5 @@
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 use cfg_if::cfg_if;
+use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 pub struct UnimplementedHal;
 
