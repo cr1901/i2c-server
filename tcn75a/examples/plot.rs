@@ -1,0 +1,157 @@
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(any(target_os = "linux", target_os = "android"))] {
+        use linux_embedded_hal::{I2cdev, i2cdev::linux::LinuxI2CError};
+        use tcn75a::*;
+        use argh::FromArgs;
+        use textplots::{Chart, Plot, Shape};
+        use std::thread::sleep;
+        use std::time::Duration;
+        use indicatif::{ProgressBar, ProgressStyle};
+        use serde_json;
+        use std::fs::File;
+        use std::io::Write;
+        use std::error::Error as ErrorTrait;
+
+        #[derive(FromArgs)]
+        #[argh(description = "plot tcn75a data")]
+        struct InputArgs {
+            #[argh(positional)]
+            bus: String,
+            #[argh(positional, from_str_fn(from_base_16))]
+            addr: u8,
+            #[argh(option, short='n', default = "default_num_samples()", description = "number of samples to take")]
+            num: u64,
+            #[argh(option, short='r', default = "default_resolution()", from_str_fn(get_resolution), description = "sample resolution")]
+            res: u8,
+            #[argh(option, short='o', description = "out json file")]
+            out_file: Option<String>
+        }
+
+        #[derive(Debug)]
+        enum PlotError {
+            I2c(LinuxI2CError),
+            Tcn75a(tcn75a::Error<I2cdev>),
+            OutputError(Box<dyn ErrorTrait>)
+        }
+
+        impl From<LinuxI2CError> for PlotError {
+            fn from(i2c_err: LinuxI2CError) -> PlotError {
+                PlotError::I2c(i2c_err)
+            }
+        }
+
+        impl From<tcn75a::Error<I2cdev>> for PlotError {
+            fn from(tcn75a_err: tcn75a::Error<I2cdev>) -> PlotError {
+                PlotError::Tcn75a(tcn75a_err)
+            }
+        }
+
+        fn default_num_samples() -> u64 {
+            100
+        }
+
+        fn default_resolution() -> u8 {
+            11
+        }
+
+        fn from_base_16(val: &str) -> Result<u8, String> {
+            match u8::from_str_radix(val, 16) {
+                Ok(v) => Ok(v),
+                Err(_) => {
+                    Err("Unable to convert address from base 16".into())
+                }
+            }
+        }
+
+        fn get_resolution(val: &str) -> Result<u8, String> {
+            match u8::from_str_radix(val, 10) {
+                Ok(r) => {
+                    match r {
+                        9 => Ok(9),
+                        10 => Ok(10),
+                        11 => Ok(11),
+                        12 => Ok(12),
+                        _ => Err("Invalid resolution (expected 9, 10, 11, or 12)".into())
+                    }
+                },
+                _ => {
+                    Err("Invalid resolution (not a base-10 number)".into())
+                }
+            }
+        }
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn main() -> Result<(), PlotError> {
+    let args: InputArgs = argh::from_env();
+
+    let i2c: I2cdev = I2cdev::new(args.bus)?;
+    let mut tcn = Tcn75a::new(i2c, args.addr);
+    let mut points: Vec<(f32, f32)> = Vec::new();
+    let mut data: Vec<f32> = Vec::new();
+
+    let bar = ProgressBar::new(args.num);
+    bar.set_style(ProgressStyle::default_bar()
+        .progress_chars("#>-"));
+
+    let mut cfg = ConfigReg::new();
+    let sample_time: u16;
+
+    match args.res {
+        9 => {
+            cfg.set_resolution(Resolution::Bits9);
+            sample_time = 30;
+        },
+        10 => {
+            cfg.set_resolution(Resolution::Bits10);
+            sample_time = 60;
+        },
+        11 => {
+            cfg.set_resolution(Resolution::Bits11);
+            sample_time = 120;
+        },
+        12 => {
+            cfg.set_resolution(Resolution::Bits12);
+            sample_time = 240;
+        },
+        _ => unreachable!()
+    }
+    tcn.set_config_reg(cfg)?;
+
+    tcn.set_reg_ptr(0)?;
+    println!("Capturing data (1 sample every {} milliseconds)", sample_time);
+    for i in 0..args.num {
+        let temp = (tcn.temperature()? as f32)/16.0f32;
+        points.push((i as f32, temp));
+        data.push(temp);
+
+        sleep(Duration::from_millis((sample_time - 1).into())); // ~1 milli for i2c read.
+        bar.inc(1);
+    }
+    bar.finish();
+
+    println!("\ny = {} temperature samples (1 every {} millisconds)", args.num, sample_time);
+    Chart::new(120, 60, 0.0, args.num as f32).lineplot(&Shape::Steps(&points)).display();
+
+    let json_str = serde_json::to_string(&data).unwrap();
+
+    if let Some(out) = args.out_file {
+        let mut file = File::create(out).map_err(|e| PlotError::OutputError(Box::new(e)))?;
+        file.write_all(json_str.as_bytes()).map_err(|e| PlotError::OutputError(Box::new(e)))?;
+    } else {
+        println!("{}", json_str);
+    }
+
+    // impl Drop?
+    let _i2c_old = tcn.free();
+
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn main() {
+
+}
