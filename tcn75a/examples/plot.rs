@@ -13,6 +13,7 @@ cfg_if! {
         use std::fs::File;
         use std::io::Write;
         use std::error::Error as ErrorTrait;
+        use std::convert::TryInto;
 
         #[derive(FromArgs)]
         #[argh(description = "plot tcn75a data")]
@@ -24,7 +25,7 @@ cfg_if! {
             #[argh(option, short='n', default = "default_num_samples()", description = "number of samples to take")]
             num: u64,
             #[argh(option, short='r', default = "default_resolution()", from_str_fn(get_resolution), description = "sample resolution")]
-            res: u8,
+            res: Resolution,
             #[argh(option, short='o', description = "out json file")]
             out_file: Option<String>
         }
@@ -52,8 +53,8 @@ cfg_if! {
             100
         }
 
-        fn default_resolution() -> u8 {
-            11
+        fn default_resolution() -> Resolution {
+            Resolution::Bits11
         }
 
         fn from_base_16(val: &str) -> Result<u8, String> {
@@ -65,16 +66,10 @@ cfg_if! {
             }
         }
 
-        fn get_resolution(val: &str) -> Result<u8, String> {
+        fn get_resolution(val: &str) -> Result<Resolution, String> {
             match u8::from_str_radix(val, 10) {
                 Ok(r) => {
-                    match r {
-                        9 => Ok(9),
-                        10 => Ok(10),
-                        11 => Ok(11),
-                        12 => Ok(12),
-                        _ => Err("Invalid resolution (expected 9, 10, 11, or 12)".into())
-                    }
+                    r.try_into().map_err(|_| "Invalid resolution (expected 9, 10, 11, or 12)".into())
                 },
                 _ => {
                     Err("Invalid resolution (not a base-10 number)".into())
@@ -99,25 +94,13 @@ fn main() -> Result<(), PlotError> {
     let mut cfg = ConfigReg::new();
     let sample_time: u16;
 
-    match args.res {
-        9 => {
-            cfg.set_resolution(Resolution::Bits9);
-            sample_time = 30;
-        }
-        10 => {
-            cfg.set_resolution(Resolution::Bits10);
-            sample_time = 60;
-        }
-        11 => {
-            cfg.set_resolution(Resolution::Bits11);
-            sample_time = 120;
-        }
-        12 => {
-            cfg.set_resolution(Resolution::Bits12);
-            sample_time = 240;
-        }
-        _ => unreachable!(),
-    }
+    cfg.set_resolution(args.res);
+    sample_time = match args.res {
+        Resolution::Bits9 => 30,
+        Resolution::Bits10 => 60,
+        Resolution::Bits11 => 120,
+        Resolution::Bits12 => 240,
+    };
     tcn.set_config_reg(cfg)?;
 
     tcn.set_reg_ptr(0)?;

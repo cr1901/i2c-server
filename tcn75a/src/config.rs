@@ -1,5 +1,5 @@
-use modular_bitfield::prelude::*;
 use core::convert::{From, TryFrom};
+use modular_bitfield::prelude::*;
 
 /** Representation of the Sensor Configuration Register.
 
@@ -119,7 +119,7 @@ assert!(try_res_fail.is_err());
 [`TryFrom`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html
 [`From`]: https://doc.rust-lang.org/nightly/core/convert/trait.From.html
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Resolution {
     Bits9 = 0,
     Bits10,
