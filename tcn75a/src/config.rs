@@ -53,30 +53,87 @@ pub struct ConfigReg {
     one_shot: OneShot,
 }
 
-macro_rules! impl_field {
-    ( $doc:expr, $type:ident, $first:ident $(, $subseq:ident )* ) => {
-        #[doc = $doc]
-        #[doc = " bit(s) in the Sensor Configuration Register.\n"]
-        #[doc = "Consult the TCN75A [datasheet] for information on the meanings of each variant."]
-        #[doc = "Variant names will be similar to the datasheet (changes in the datasheet names"]
-        #[doc = "in subsequent silicon revisions may constitute a breaking API change).\n"]
-        #[doc = "[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf"]
-        #[derive(BitfieldSpecifier, Debug, PartialEq)]
-        pub enum $type {
-            $first = 0,
-            $(
-                $subseq
-            ),*
-        }
-    }
+/** One-Shot bit in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum OneShot {
+    Disabled = 0,
+    Enabled,
 }
 
-impl_field!("One-Shot", OneShot, Disabled, Enabled);
-impl_field!("ADC Resolution", Resolution, Bits9, Bits10, Bits11, Bits12);
-impl_field!("Fault Queue", FaultQueue, One, Two, Four, Six);
-impl_field!("Alert Polarity", AlertPolarity, ActiveLow, ActiveHigh);
-impl_field!("Comp/Int", CompInt, Comparator, Interrupt);
-impl_field!("Shutdown", Shutdown, Disable, Enable);
+/** ADC Resolution bits in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum Resolution {
+    Bits9 = 0,
+    Bits10,
+    Bits11,
+    Bits12,
+}
+
+/** Fault Queue bits in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum FaultQueue {
+    One = 0,
+    Two,
+    Four,
+    Six,
+}
+
+/** Alert Polarity bit in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum AlertPolarity {
+    ActiveLow = 0,
+    ActiveHigh,
+}
+
+/** Comp/Int bit in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum CompInt {
+    Comparator = 0,
+    Interrupt,
+}
+
+/** Shutdown bit in the Sensor Configuration Register.
+
+Consult the TCN75A [datasheet] for information on the meanings of each variant.
+Variant names will be similar to the datasheet (changes in the datasheet names
+in subsequent silicon revisions may constitute a breaking API change).
+
+[datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf */
+#[derive(BitfieldSpecifier, Debug, PartialEq)]
+pub enum Shutdown {
+    Disable = 0,
+    Enable,
+}
 
 #[cfg(test)]
 mod tests {
