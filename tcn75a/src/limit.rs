@@ -44,7 +44,7 @@ assert_eq!(orig, restored);
 ```
 
 [`set_limits`]: ./struct.Tcn75a.html#method.set_limits
-[examples]: ./struct.Tcn75a.html#examples-5
+[examples]: ./struct.Tcn75a.html#examples-6
 [`Limits`]: ./struct.Limits.html
 [`Tcn75a`]: ./struct.Tcn75a.html
 [`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from
@@ -58,7 +58,7 @@ pub struct Limits(i16, i16);
 
 Due to its runtime guarantees, a [`Limits`] struct can only be created by invoking [`try_from`]
 on a `(i16, i16)` tuple. [`LimitError`] is the associated [`Error`] type in the
-[`TryFrom<(i16, i16)>>`][`TryFrom`] implementation on [`Limits`], and it contains all the reasons
+[`TryFrom<(i16, i16)>`][`TryFrom`] implementation on [`Limits`], and it contains all the reasons
 a conversion from `(i16, i16)` can fail.
 
 [`Limits`]: ./struct.Limits.html

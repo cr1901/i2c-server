@@ -56,7 +56,7 @@ where
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 pub enum Tcn75aError<R, W> {
     /** A temperature value was read successfully, but some bits were set that should always
-    read as zero. */
+    read as zero. This _may_ indicate that you are not reading a TCN75A.  */
     OutOfRange,
     /** The temperature limit registers were read successfully, but the values read were invalid
     (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid.
