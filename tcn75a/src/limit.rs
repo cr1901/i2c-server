@@ -105,11 +105,11 @@ impl TryFrom<(Temperature, Temperature)> for Limits {
     type Error = LimitError;
 
     fn try_from(val: (Temperature, Temperature)) -> Result<Self, Self::Error> {
-        if val.0.0 >= val.1.0 {
+        if val.0 .0 >= val.1 .0 {
             Err(LimitError::LowExceedsHigh)
         } else {
             // We have I8F8 format, we need Q8.1... so arithmetic shift by 7.
-            Ok(Limits(val.0.0.to_bits() >> 7, val.1.0.to_bits() >> 7))
+            Ok(Limits(val.0 .0.to_bits() >> 7, val.1 .0.to_bits() >> 7))
         }
     }
 }

@@ -1,10 +1,10 @@
-use core::ops::{Add, Sub};
 use core::fmt;
+use core::ops::{Add, Sub};
 
 use fixed::types::I8F8;
 
 /* Invariant: temperature() will ensure lower bits are cleared for the
-   given resolution. */
+given resolution. */
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct Temperature(pub(crate) I8F8);

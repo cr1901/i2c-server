@@ -1,6 +1,6 @@
 use cfg_if::cfg_if;
-use std::io::{Write, stdout};
-use crossterm::{ExecutableCommand, QueueableCommand, cursor};
+use crossterm::{cursor, ExecutableCommand, QueueableCommand};
+use std::io::{stdout, Write};
 
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -52,9 +52,13 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
 
     let temp_lo = temp + 1;
     let temp_hi = temp + 2;
-    tcn.set_limits((temp_lo, temp_hi).try_into().unwrap()).unwrap();
+    tcn.set_limits((temp_lo, temp_hi).try_into().unwrap())
+        .unwrap();
 
-    println!("Target temp is {} C! Press your finger against the sensor!", temp_hi);
+    println!(
+        "Target temp is {} C! Press your finger against the sensor!",
+        temp_hi
+    );
 
     let mut stdout = stdout();
 
