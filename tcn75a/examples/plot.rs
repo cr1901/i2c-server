@@ -109,7 +109,7 @@ fn main() -> Result<(), PlotError> {
         sample_time
     );
     for i in 0..args.num {
-        let temp = (tcn.temperature()? as f32) / 16.0f32;
+        let temp = f32::from(tcn.temperature()?);
         points.push((i as f32, temp));
         data.push(temp);
 

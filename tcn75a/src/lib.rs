@@ -25,12 +25,16 @@ use core::convert::TryFrom;
 use core::convert::TryInto;
 use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write};
+use fixed::types::I8F8;
 
 mod config;
 pub use config::*;
 
 mod limit;
 pub use limit::*;
+
+mod temp;
+pub use temp::*;
 
 /** A struct for describing how to read and write a TCN75A temperature sensors' registers via an
 [`embedded_hal`] implementation (for a single-controller I2C bus).
@@ -312,7 +316,7 @@ where
     [`Tcn75aError::OutOfRange`]: ./enum.Tcn75aError.html#variant.OutOfRange
     [`Resolution::Bits9`]: ./enum.Resolution.html#variant.Bits9
     */
-    pub fn temperature(&mut self) -> Result<i16, Error<T>> {
+    pub fn temperature(&mut self) -> Result<Temperature, Error<T>> {
         let mut temp: [u8; 2] = [0u8; 2];
 
         self.set_reg_ptr(0x00)?;
@@ -326,7 +330,7 @@ where
         // contents. Fall back to most conservative (9Bits) if unknown
         // Resolution.
         if (raw_temp & 0x000f) == 0 {
-            Ok(raw_temp >> 4)
+            Ok(Temperature(I8F8::from_bits(raw_temp)))
         } else {
             Err(Tcn75aError::OutOfRange)
         }

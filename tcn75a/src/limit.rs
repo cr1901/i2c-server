@@ -1,4 +1,7 @@
 use core::convert::{From, TryFrom};
+use fixed::types::I8F8;
+
+use super::temp::*;
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
 
@@ -94,6 +97,19 @@ impl TryFrom<(i16, i16)> for Limits {
             Err(LimitError::LowExceedsHigh)
         } else {
             Ok(Limits(val.0, val.1))
+        }
+    }
+}
+
+impl TryFrom<(Temperature, Temperature)> for Limits {
+    type Error = LimitError;
+
+    fn try_from(val: (Temperature, Temperature)) -> Result<Self, Self::Error> {
+        if val.0.0 >= val.1.0 {
+            Err(LimitError::LowExceedsHigh)
+        } else {
+            // We have I8F8 format, we need Q8.1... so arithmetic shift by 7.
+            Ok(Limits(val.0.0.to_bits() >> 7, val.1.0.to_bits() >> 7))
         }
     }
 }

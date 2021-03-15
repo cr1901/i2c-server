@@ -50,9 +50,9 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     tcn.set_reg_ptr(0).unwrap();
     let temp = tcn.temperature().unwrap();
 
-    let temp_lo = (temp + 16) >> 4;
-    let temp_hi = (temp + 32) >> 4;
-    tcn.set_limits((temp_lo*2, temp_hi*2).try_into().unwrap()).unwrap();
+    let temp_lo = temp + 1;
+    let temp_hi = temp + 2;
+    tcn.set_limits((temp_lo, temp_hi).try_into().unwrap()).unwrap();
 
     println!("Target temp is {} C! Press your finger against the sensor!", temp_hi);
 
@@ -62,13 +62,13 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
         let temp = tcn.temperature().unwrap();
 
         stdout.execute(cursor::SavePosition);
-        stdout.write(format!("Current temp is {} C.\r", temp >> 4).as_bytes());
+        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes());
         stdout.execute(cursor::RestorePosition);
         stdout.flush();
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
-        if (temp >> 4) >= temp_hi {
+        if temp >= temp_hi {
             break;
         }
     }
@@ -79,13 +79,13 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
         let temp = tcn.temperature().unwrap();
 
         stdout.execute(cursor::SavePosition);
-        stdout.write(format!("Current temp is {} C.\r", temp >> 4).as_bytes());
+        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes());
         stdout.execute(cursor::RestorePosition);
         stdout.flush();
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
-        if (temp >> 4) <= temp_lo {
+        if temp <= temp_lo {
             break;
         }
     }

@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 embedded-hal = "0.2.2"
 modular-bitfield = { git = "https://github.com/Robbepop/modular-bitfield.git", version = "0.6.0" }
+fixed = "1.6.0"
 
 [dev-dependencies]
 embedded-hal-mock = "0.7.2"
