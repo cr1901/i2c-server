@@ -806,8 +806,10 @@ mod tests {
         // Compare against raw value, not corrected for 9-12 bits (divide by 16 in all cases to
         // get Celsius temp). In addition, we shift by 4 more bits to account for the 4 unused
         // bits.
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(2040 << 4))));
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(2040 << 4))));
+        // (127 << 4) + 8 <= Q8.4
+        // << 4 <= Q8.8/I8F8
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4))));
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4))));
 
         let i2c = tcn.free();
         let mut tcn = Tcn75a::new(i2c, 0x49);
@@ -815,7 +817,7 @@ mod tests {
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.cfg, None);
 
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(-1 << 4))));
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((0 << 4) - 1) << 4))));
     }
 
     #[test]
