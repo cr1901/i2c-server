@@ -285,7 +285,7 @@ where
     // Assume `tcn` and the controller were _just_ powered on.
     // 9-bit resolution (0.5 degrees).
     let temp = tcn.temperature()?;
-    println!("Temperature is {:.1} degrees Celsius", (temp as f32)/16.0f32);
+    println!("Temperature is {:.1} degrees Celsius", f32::from(temp)/16.0f32);
     # Ok(())
     # }
     # } else {
@@ -707,11 +707,12 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
+    use super::{Temperature, AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
     };
+    use fixed::types::I8F8;
 
     fn mk_tcn75a(expectations: &[I2cTransaction], addr: u8) -> Tcn75a<I2cMock> {
         let i2c = I2cMock::new(expectations);
@@ -802,11 +803,11 @@ mod tests {
             0x48,
         );
 
-        // We return raw value, not corrected for 9-12 bits (divide by 16 in all cases to
-        // get Celsius temp). TODO: Possibly make newtype Temperature(i16) or
-        // Temperature(i16, Resolution)?
-        assert_eq!(tcn.temperature(), Ok(2040));
-        assert_eq!(tcn.temperature(), Ok(2040));
+        // Compare against raw value, not corrected for 9-12 bits (divide by 16 in all cases to
+        // get Celsius temp). In addition, we shift by 4 more bits to account for the 4 unused
+        // bits.
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(2040 << 4))));
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(2040 << 4))));
 
         let i2c = tcn.free();
         let mut tcn = Tcn75a::new(i2c, 0x49);
@@ -814,7 +815,7 @@ mod tests {
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.cfg, None);
 
-        assert_eq!(tcn.temperature(), Ok(-1));
+        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(-1 << 4))));
     }
 
     #[test]
