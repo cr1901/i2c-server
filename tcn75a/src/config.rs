@@ -4,7 +4,7 @@ use modular_bitfield::prelude::*;
 /** Representation of the Sensor Configuration Register.
 
 The Sensor Configuration Register of the TCN75A is eight bits wide and consists of
-6 separate fields. Fields are accessed using `get_*` and `set_*` methods provided by the
+6 separate fields. Fields are accessed using getters and `set_*` methods provided by the
 [`modular_bitfield`] crate. See the [datasheet] for information on field meanings.
 
 # Examples
@@ -15,10 +15,10 @@ panic:
 ```
 # use tcn75a::{ConfigReg, Resolution};
 let mut cfg = ConfigReg::new();
-assert_eq!(cfg.get_resolution(), Resolution::Bits9);
+assert_eq!(cfg.resolution(), Resolution::Bits9);
 
 cfg.set_resolution(Resolution::Bits12);
-assert_eq!(cfg.get_resolution(), Resolution::Bits12);
+assert_eq!(cfg.resolution(), Resolution::Bits12);
 ```
 
 Using `set_*_checked` methods and [`unwrap`ping][`unwrap`] the `Result` should also be zero-cost:
@@ -26,10 +26,10 @@ Using `set_*_checked` methods and [`unwrap`ping][`unwrap`] the `Result` should a
 ```
 # use tcn75a::{ConfigReg, Resolution};
 let mut cfg = ConfigReg::new();
-assert_eq!(cfg.get_resolution(), Resolution::Bits9);
+assert_eq!(cfg.resolution(), Resolution::Bits9);
 
 cfg.set_resolution_checked(Resolution::Bits12).unwrap();
-assert_eq!(cfg.get_resolution(), Resolution::Bits12);
+assert_eq!(cfg.resolution(), Resolution::Bits12);
 ```
 
 [`modular_bitfield`]: ../modular_bitfield/index.html
@@ -41,17 +41,17 @@ assert_eq!(cfg.get_resolution(), Resolution::Bits12);
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct ConfigReg {
     #[bits = 1]
-    shutdown: Shutdown,
+    pub shutdown: Shutdown,
     #[bits = 1]
-    comp_int: CompInt,
+    pub comp_int: CompInt,
     #[bits = 1]
-    alert_polarity: AlertPolarity,
+    pub alert_polarity: AlertPolarity,
     #[bits = 2]
-    fault_queue: FaultQueue,
+    pub fault_queue: FaultQueue,
     #[bits = 2]
-    resolution: Resolution,
+    pub resolution: Resolution,
     #[bits = 1]
-    one_shot: OneShot,
+    pub one_shot: OneShot,
 }
 
 /** Error type due to failed conversions from u8 into Configuration Register fields.
@@ -274,7 +274,7 @@ mod tests {
         cfg.set_shutdown(Shutdown::Disable);
         cfg.set_comp_int(CompInt::Interrupt);
 
-        let val = u8::from_le_bytes(cfg.to_bytes().try_into().unwrap());
+        let val = u8::from_le_bytes(cfg.into_bytes().try_into().unwrap());
 
         assert_eq!(val, 0b0000010);
     }
@@ -285,7 +285,7 @@ mod tests {
         cfg.set_resolution(Resolution::Bits12);
         cfg.set_fault_queue(FaultQueue::Six);
 
-        let val = u8::from_le_bytes(cfg.to_bytes().try_into().unwrap());
+        let val = u8::from_le_bytes(cfg.into_bytes().try_into().unwrap());
         assert_eq!(val, 0b01111000);
     }
 
@@ -293,14 +293,14 @@ mod tests {
     fn test_reset_defaults() {
         let cfg = ConfigReg::new();
 
-        assert_eq!(cfg.get_shutdown(), Shutdown::Disable);
-        assert_eq!(cfg.get_comp_int(), CompInt::Comparator);
-        assert_eq!(cfg.get_alert_polarity(), AlertPolarity::ActiveLow);
-        assert_eq!(cfg.get_resolution(), Resolution::Bits9);
-        assert_eq!(cfg.get_fault_queue(), FaultQueue::One);
-        assert_eq!(cfg.get_one_shot(), OneShot::Disabled);
+        assert_eq!(cfg.shutdown(), Shutdown::Disable);
+        assert_eq!(cfg.comp_int(), CompInt::Comparator);
+        assert_eq!(cfg.alert_polarity(), AlertPolarity::ActiveLow);
+        assert_eq!(cfg.resolution(), Resolution::Bits9);
+        assert_eq!(cfg.fault_queue(), FaultQueue::One);
+        assert_eq!(cfg.one_shot(), OneShot::Disabled);
 
-        let val = u8::from_le_bytes(cfg.to_bytes().try_into().unwrap());
+        let val = u8::from_le_bytes(cfg.into_bytes().try_into().unwrap());
         assert_eq!(val, 0);
     }
 }

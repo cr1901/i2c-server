@@ -409,8 +409,7 @@ where
             .ctx
             .read(self.address, &mut buf)
             .and_then(|_| {
-                let buf_slice: &[u8] = &buf;
-                let cfg = buf_slice.try_into().unwrap();
+                let cfg = ConfigReg::from_bytes(buf);
 
                 self.cfg = Some(cfg);
                 Ok(cfg)
@@ -480,7 +479,7 @@ where
 
         // Reg ptr
         buf[0] = 0x01;
-        buf[1] = cfg.to_bytes()[0];
+        buf[1] = cfg.into_bytes()[0];
 
         self.ctx
             .write(self.address, &buf)
