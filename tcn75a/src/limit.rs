@@ -1,7 +1,6 @@
 use core::convert::{From, TryFrom};
 use fixed::types::I8F8;
-
-use super::temp::*;
+use fixed_macro::fixed;
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
 
@@ -19,7 +18,7 @@ register is also a lower bound, see the [`set_limits`] documentation [examples].
 
 Successfully creating an instance of this struct provides the following runtime invariants:
 
-* The Hysteresis and Limit-Set register values fit within a 9-bit signed integer
+* The Hysteresis and Limit-Set register values fit within a Q8.1 signed integer
   (`i16`, -256 to 255).
 * The Hysteresis limit value is less than the Limit-Set register.
 
@@ -40,7 +39,9 @@ the original values:
 ```
 # use std::convert::TryInto;
 # use tcn75a::Limits;
-let orig = (0, 255);
+# use fixed::types::I8F8;
+# use fixed_macro::fixed;
+let orig = (fixed!(0: I8F8), fixed!(127.5: I8F8));
 let lims : Limits = orig.try_into().unwrap();
 let restored = lims.into();
 assert_eq!(orig, restored);
@@ -55,7 +56,7 @@ assert_eq!(orig, restored);
 */
 // TODO: Limits::new().
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Limits(i16, i16);
+pub struct Limits(I8F8, I8F8);
 
 /** Reasons a conversion from `(i16, i16)` to [`Limits`] may fail.
 
@@ -83,54 +84,33 @@ pub enum LimitError {
     LowExceedsHigh,
 }
 
-impl TryFrom<(i16, i16)> for Limits {
-    type Error = LimitError;
-
-    fn try_from(val: (i16, i16)) -> Result<Self, Self::Error> {
-        if (val.0 < -256 || val.0 > 255) && (val.1 < -256 || val.1 > 255) {
-            Err(LimitError::BothOutOfRange)
-        } else if val.0 < -256 || val.0 > 255 {
-            Err(LimitError::LowOutOfRange)
-        } else if val.1 < -256 || val.1 > 255 {
-            Err(LimitError::HighOutOfRange)
-        } else if val.0 >= val.1 {
-            Err(LimitError::LowExceedsHigh)
-        } else {
-            Ok(Limits(val.0, val.1))
-        }
-    }
-}
-
 impl TryFrom<(I8F8, I8F8)> for Limits {
     type Error = LimitError;
 
-    fn try_from(_val: (I8F8, I8F8)) -> Result<Self, Self::Error> {
-        unimplemented!()
-    }
-}
+    fn try_from(val: (I8F8, I8F8)) -> Result<Self, Self::Error> {
+        let half = I8F8::from_num(1) / 2;
 
-impl TryFrom<(Temperature, Temperature)> for Limits {
-    type Error = LimitError;
+        let lo_out_of_range = val.0.frac() != half && val.0.frac() != 0;
+        let hi_out_of_range = val.1.frac() != half && val.1.frac() != 0;
 
-    fn try_from(val: (Temperature, Temperature)) -> Result<Self, Self::Error> {
-        if val.0 .0 >= val.1 .0 {
-            Err(LimitError::LowExceedsHigh)
-        } else {
-            // We have I8F8 format, we need Q8.1... so arithmetic shift by 7.
-            Ok(Limits(val.0 .0.to_bits() >> 7, val.1 .0.to_bits() >> 7))
+        match (lo_out_of_range, hi_out_of_range) {
+            (true, true) => Err(LimitError::BothOutOfRange),
+            (true, false) => Err(LimitError::LowOutOfRange),
+            (false, true) => Err(LimitError::HighOutOfRange),
+            (false, false) => {
+                if val.0 >= val.1 {
+                    Err(LimitError::LowExceedsHigh)
+                } else {
+                    Ok(Limits(val.0, val.1))
+                }
+            }
         }
-    }
-}
-
-impl From<Limits> for (i16, i16) {
-    fn from(limits: Limits) -> (i16, i16) {
-        (limits.0, limits.1)
     }
 }
 
 impl From<Limits> for (I8F8, I8F8) {
-    fn from(_limits: Limits) -> (I8F8, I8F8) {
-        unimplemented!()
+    fn from(limits: Limits) -> (I8F8, I8F8) {
+        (limits.0, limits.1)
     }
 }
 
@@ -140,27 +120,36 @@ mod tests {
 
     #[test]
     fn test_limit_ok() {
-        assert_eq!(TryFrom::try_from((0, 255)), Ok(Limits(0, 255)));
-        assert_eq!(TryFrom::try_from((-256, 255)), Ok(Limits(-256, 255)));
-        assert_eq!(TryFrom::try_from((-256, -1)), Ok(Limits(-256, -1)));
+        assert_eq!(
+            TryFrom::try_from((fixed!(0: I8F8), fixed!(127.5: I8F8))),
+            Ok(Limits(fixed!(0: I8F8), fixed!(127.5: I8F8)))
+        );
+        assert_eq!(
+            TryFrom::try_from((fixed!(-128.0: I8F8), fixed!(127.5: I8F8))),
+            Ok(Limits(fixed!(-128.0: I8F8), fixed!(127.5: I8F8)))
+        );
+        assert_eq!(
+            TryFrom::try_from((fixed!(-128.0: I8F8), fixed!(-0.5: I8F8))),
+            Ok(Limits(fixed!(-128.0: I8F8), fixed!(-0.5: I8F8)))
+        );
     }
 
     #[test]
     fn test_limit_err() {
         assert_eq!(
-            <Limits as TryFrom<(i16, i16)>>::try_from((-257, 256)),
+            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((fixed!(-127.75: I8F8), fixed!(127.75: I8F8))),
             Err(LimitError::BothOutOfRange)
         );
         assert_eq!(
-            <Limits as TryFrom<(i16, i16)>>::try_from((0, 256)),
+            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((fixed!(0: I8F8), fixed!(127.75: I8F8))),
             Err(LimitError::HighOutOfRange)
         );
         assert_eq!(
-            <Limits as TryFrom<(i16, i16)>>::try_from((-257, 0)),
+            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((fixed!(-127.75: I8F8), fixed!(0: I8F8))),
             Err(LimitError::LowOutOfRange)
         );
         assert_eq!(
-            <Limits as TryFrom<(i16, i16)>>::try_from((1, -1)),
+            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((fixed!(0.5: I8F8), fixed!(-0.5: I8F8))),
             Err(LimitError::LowExceedsHigh)
         );
     }

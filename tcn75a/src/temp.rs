@@ -1,5 +1,4 @@
 use core::fmt;
-use core::ops::{Add, Sub};
 
 use fixed::types::I8F8;
 

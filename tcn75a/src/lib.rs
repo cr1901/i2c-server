@@ -26,6 +26,7 @@ use core::convert::TryInto;
 use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write};
 use fixed::types::I8F8;
+use fixed_macro::fixed;
 
 mod config;
 pub use config::*;
@@ -444,12 +445,14 @@ where
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
     # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, CompInt, Limits};
+    # use fixed::types::I8F8;
+    # use fixed_macro::fixed;
     # use std::convert::TryInto;
     # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
-    let limits : Limits = (25*2, 30*2).try_into().unwrap();
+    let limits : Limits = (fixed!(25.0: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
     // Attached to a microcontroller, use Interrupt mode when temperature
     // exceeds/falls below limits (alert pin asserts when temp goes above 30C,
     // and then again when temp falls below 25C).
@@ -557,20 +560,20 @@ where
     */
     pub fn limits(&mut self) -> Result<Limits, Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
-        let mut lim = (0i16, 0i16);
+        let mut lim: (I8F8, I8F8) = (0.into(), 0.into());
 
         self.set_reg_ptr(0x02)?;
         lim.0 = self
             .ctx
             .read(self.address, &mut buf)
-            .and_then(|_| Ok(i16::from_be_bytes(buf) >> 7))
+            .and_then(|_| Ok(I8F8::from_be_bytes(buf)))
             .map_err(|e| Tcn75aError::ReadError(e))?;
 
         self.set_reg_ptr(0x03)?;
         lim.1 = self
             .ctx
             .read(self.address, &mut buf)
-            .and_then(|_| Ok(i16::from_be_bytes(buf) >> 7))
+            .and_then(|_| Ok(I8F8::from_be_bytes(buf)))
             .map_err(|e| Tcn75aError::ReadError(e))?;
 
         TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
@@ -605,12 +608,14 @@ where
     # use embedded_hal::blocking::i2c::{Read, Write};
     # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
+    # use fixed::types::I8F8;
+    # use fixed_macro::fixed;
     # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
     // 9-bit fixed-point numbers- 25.5C to 30C
-    let limits : Limits = (25*2 + 1, 30*2).try_into().unwrap();
+    let limits : Limits = (fixed!(25.5: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
     // Asserted alert is default active-low at power-on reset.
     // Let's still treat active-high as the "everything's okay" condition.
     cfg.set_alert_polarity(AlertPolarity::ActiveHigh);
@@ -636,11 +641,10 @@ where
     */
     pub fn set_limits(&mut self, limits: Limits) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
-        let (mut lower, mut upper) : (i16, i16) = limits.into();
+        let (mut lower, mut upper) : (I8F8, I8F8) = limits.into();
 
         // Reg ptr
         buf[0] = 0x02;
-        lower <<= 7;
         &buf[1..3].copy_from_slice(&lower.to_be_bytes());
 
         self.ctx.write(self.address, &buf).or_else(|e| {
@@ -652,7 +656,6 @@ where
 
         // Reg ptr
         buf[0] = 0x03;
-        upper <<= 7;
         &buf[1..3].copy_from_slice(&upper.to_be_bytes());
         self.ctx.write(self.address, &buf).or_else(|e| {
             self.reg = None;
@@ -714,6 +717,7 @@ mod tests {
         MockError,
     };
     use fixed::types::I8F8;
+    use fixed_macro::fixed;
 
     fn mk_tcn75a(expectations: &[I2cTransaction], addr: u8) -> Tcn75a<I2cMock> {
         let i2c = I2cMock::new(expectations);
@@ -989,8 +993,8 @@ mod tests {
             0x48,
         );
 
-        assert_eq!(tcn.set_limits((90 * 2, 95 * 2).try_into().unwrap()), Ok(()));
-        assert_eq!(tcn.limits().unwrap().try_into(), Ok((90 * 2, 95 * 2)));
+        assert_eq!(tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()), Ok(()));
+        assert_eq!(tcn.limits().unwrap().try_into(), Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8))));
     }
 
     #[test]
@@ -1011,9 +1015,9 @@ mod tests {
         );
 
         assert_eq!(
-            tcn.set_limits((90 * 2, 95 * 2).try_into().unwrap()),
+            tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()),
             Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
         );
-        assert_eq!(tcn.limits().unwrap().try_into(), Ok((90 * 2, 95 * 2)));
+        assert_eq!(tcn.limits().unwrap().try_into(), Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8))));
     }
 }
