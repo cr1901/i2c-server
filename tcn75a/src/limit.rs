@@ -101,6 +101,14 @@ impl TryFrom<(i16, i16)> for Limits {
     }
 }
 
+impl TryFrom<(I8F8, I8F8)> for Limits {
+    type Error = LimitError;
+
+    fn try_from(_val: (I8F8, I8F8)) -> Result<Self, Self::Error> {
+        unimplemented!()
+    }
+}
+
 impl TryFrom<(Temperature, Temperature)> for Limits {
     type Error = LimitError;
 
@@ -117,6 +125,12 @@ impl TryFrom<(Temperature, Temperature)> for Limits {
 impl From<Limits> for (i16, i16) {
     fn from(limits: Limits) -> (i16, i16) {
         (limits.0, limits.1)
+    }
+}
+
+impl From<Limits> for (I8F8, I8F8) {
+    fn from(_limits: Limits) -> (I8F8, I8F8) {
+        unimplemented!()
     }
 }
 

@@ -1,4 +1,5 @@
 use cfg_if::cfg_if;
+use fixed::types::I8F8;
 
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -109,7 +110,7 @@ fn main() -> Result<(), PlotError> {
         sample_time
     );
     for i in 0..args.num {
-        let temp = f32::from(tcn.temperature()?);
+        let temp = f32::from(I8F8::from(tcn.temperature()?));
         points.push((i as f32, temp));
         data.push(temp);
 

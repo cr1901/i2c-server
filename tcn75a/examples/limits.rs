@@ -1,5 +1,6 @@
 use cfg_if::cfg_if;
 use crossterm::{cursor, ExecutableCommand, QueueableCommand};
+use fixed::types::I8F8;
 use std::io::{stdout, Write};
 
 cfg_if! {
@@ -50,8 +51,8 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     tcn.set_reg_ptr(0).unwrap();
     let temp = tcn.temperature().unwrap();
 
-    let temp_lo = temp + 1;
-    let temp_hi = temp + 2;
+    let temp_lo : I8F8 = I8F8::from(temp) + I8F8::from_num(1);
+    let temp_hi : I8F8 = I8F8::from(temp) + I8F8::from_num(2);
     tcn.set_limits((temp_lo, temp_hi).try_into().unwrap())
         .unwrap();
 
@@ -72,7 +73,7 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
-        if temp >= temp_hi {
+        if I8F8::from(temp) >= temp_hi {
             break;
         }
     }
@@ -89,7 +90,7 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
-        if temp <= temp_lo {
+        if I8F8::from(temp) <= temp_lo {
             break;
         }
     }

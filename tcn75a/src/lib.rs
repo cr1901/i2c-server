@@ -278,6 +278,7 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
+    # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution};
     # fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
@@ -285,7 +286,7 @@ where
     // Assume `tcn` and the controller were _just_ powered on.
     // 9-bit resolution (0.5 degrees).
     let temp = tcn.temperature()?;
-    println!("Temperature is {:.1} degrees Celsius", f32::from(temp)/16.0f32);
+    println!("Temperature is {:.1} degrees Celsius", f32::from(I8F8::from(temp)));
     # Ok(())
     # }
     # } else {
@@ -635,7 +636,7 @@ where
     */
     pub fn set_limits(&mut self, limits: Limits) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
-        let (mut lower, mut upper) = limits.into();
+        let (mut lower, mut upper) : (i16, i16) = limits.into();
 
         // Reg ptr
         buf[0] = 0x02;
