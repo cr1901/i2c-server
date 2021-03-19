@@ -7,20 +7,25 @@ use fixed_macro::fixed;
 The Hysteresis and Limit-Set registers provide the lower and upper bounds respectively of
 the temperature range that the TCN75A should monitor. When the temperature is above the value in
 Limit-Set Register, the alert pin will assert. The alert pin will _remain_ asserted until the
-temperature goes below the value in the Hysteresis register. Temperatures are represented as
-9-bit signed integers, which corresponds to 0.5 degrees Celsius precision.
+temperature goes below the value in the Hysteresis register.
+
+Temperatures are represented as 9-bit signed integers ([`Q8.1`]), which corresponds to 0.5 degrees
+Celsius precision. Internally, this crate represents [`Q8.1`] integers as [`FixedI16::<U8>`]
+types, or [`I8F8`] for short. To create values of type [`I8F8`], you are encouraged to use the
+[`fixed_macro`] crate, as in the [example][limit_example].
 
 The silicon can tolerate swapped Hysteresis and Limit-Set registers, but to avoid potential
-confusing TCN75A behavior, this crate does not allow it. For rationale as to why the Hysteresis
-register is also a lower bound, see the [`set_limits`] documentation [examples].
+confusing TCN75A behavior, this crate does not allow it in normal operation. For rationale as
+to why the Hysteresis register can also be treated a low temperature alert, see the [`set_limits`]
+documentation [examples].
 
 # Invariants
 
 Successfully creating an instance of this struct provides the following runtime invariants:
 
-* The Hysteresis and Limit-Set register values fit within a Q8.1 signed integer
-  (`i16`, -256 to 255).
-* The Hysteresis limit value is less than the Limit-Set register.
+* The Hysteresis and Limit-Set register values fit within a [`Q8.1`] signed integer (either `0`
+  or `0.5` is allowed as the fractional part).
+* The Hysteresis register value is less than the Limit-Set register.
 
 As part of upholding these invariants:
 
@@ -31,22 +36,28 @@ As part of upholding these invariants:
 
 # Examples
 
-A [`Limits`] struct is created by invoking [`try_from`] on a `(i16, i16)` tuple, where the
+A [`Limits`] struct is created by invoking [`try_from`] on a `(I8F8, I8F8)` tuple, where the
 Hysteresis (Low) value is on the left, and the Limit-Set (High) value is on the right. A
-[`From<Limits>`][`From`] implementation on `(i16, i16)` consumes a [`Limits`] struct and gets back
+[`From<Limits>`][`From`] implementation on `(I8F8, I8F8)` consumes a [`Limits`] struct and gets back
 the original values:
 
 ```
 # use std::convert::TryInto;
 # use tcn75a::Limits;
-# use fixed::types::I8F8;
-# use fixed_macro::fixed;
+use fixed::types::I8F8;
+use fixed_macro::fixed;
+
 let orig = (fixed!(0: I8F8), fixed!(127.5: I8F8));
 let lims : Limits = orig.try_into().unwrap();
 let restored = lims.into();
 assert_eq!(orig, restored);
 ```
 
+[`Q8.1`]: https://en.wikipedia.org/wiki/Q_(number_format)
+[`FixedI16::<U8>`]: ../fixed/struct.FixedI16.html
+[`I8F8`]: ../fixed/types/type.I8F8.html
+[`fixed_macro`]: ../fixed_macro/index.html
+[limit_example]: ./struct.Limits.html#examples
 [`set_limits`]: ./struct.Tcn75a.html#method.set_limits
 [examples]: ./struct.Tcn75a.html#examples-6
 [`Limits`]: ./struct.Limits.html
@@ -58,12 +69,12 @@ assert_eq!(orig, restored);
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Limits(I8F8, I8F8);
 
-/** Reasons a conversion from `(i16, i16)` to [`Limits`] may fail.
+/** Reasons a conversion from `(I8F8, I8F8)` to [`Limits`] may fail.
 
 Due to its runtime guarantees, a [`Limits`] struct can only be created by invoking [`try_from`]
-on a `(i16, i16)` tuple. [`LimitError`] is the associated [`Error`] type in the
-[`TryFrom<(i16, i16)>`][`TryFrom`] implementation on [`Limits`], and it contains all the reasons
-a conversion from `(i16, i16)` can fail.
+on a `(I8F8, I8F8)` tuple. [`LimitError`] is the associated [`Error`] type in the
+[`TryFrom<(I8F8, I8F8)>`][`TryFrom`] implementation on [`Limits`], and it contains all the reasons
+a conversion from `(I8F8, I8F8)` can fail.
 
 [`Limits`]: ./struct.Limits.html
 [`try_from`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#tymethod.try_from
