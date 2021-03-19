@@ -22,11 +22,9 @@ operation is possible at the cost of performance, but not implemented.
 #![no_std]
 
 use core::convert::TryFrom;
-use core::convert::TryInto;
 use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write};
 use fixed::types::I8F8;
-use fixed_macro::fixed;
 
 mod config;
 pub use config::*;
@@ -645,7 +643,7 @@ where
     */
     pub fn set_limits(&mut self, limits: Limits) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
-        let (mut lower, mut upper): (I8F8, I8F8) = limits.into();
+        let (lower, upper): (I8F8, I8F8) = limits.into();
 
         // Reg ptr
         buf[0] = 0x02;

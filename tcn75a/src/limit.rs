@@ -1,6 +1,5 @@
 use core::convert::{From, TryFrom};
 use fixed::types::I8F8;
-use fixed_macro::fixed;
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
 
@@ -128,6 +127,7 @@ impl From<Limits> for (I8F8, I8F8) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fixed_macro::fixed;
 
     #[test]
     fn test_limit_ok() {
