@@ -587,18 +587,22 @@ where
 
     For an `Ok` variant return value, the register pointer cache points to register 3. For
     an `Err` variant return value, the register pointer cache is flushed. The sensor config
-    cache is untouched by this function.
+    cache is untouched by this function. An `Ok` return value means that the TCN75A has been
+    programmed such that the Hysteresis Register value is less than the Limit-Set Register
+    value.
+
+    Although the TCN75A can tolerate a Hysteresis Register value which exceeds the Limit-Set
+    Register value, for simplicity, this crate attempts to [disallow] it. _At present, a failed
+    write to the Limit-Set Register via `set_limits` may result in a Hysteresis Register value
+    which exceeds the Limit-Set Register value_.
 
     # Examples
-
-    Although the silicon can tolerate a Hysteresis Register value which exceeds the Limit-Set
-    Register value, for simplicity, this crate [disallows] it.
 
     To create a low temperature alert, treat an asserted alert pin _of either [polarity]_
     as the operating-normally condition. When the temperature drops to below the value in
     Hysteresis Register, the alert pin will deassert, indicating the temperature is too low and
     the CPU should correct it. The alert pin will reassert when the temperature exceeds the value
-    in the Limit-Set Register, indicating the temperature is okay again.
+    in the Limit-Set Register, which indicates the temperature is okay again.
 
     ```
     # cfg_if::cfg_if! {
@@ -634,7 +638,8 @@ where
     * [`Tcn75aError::WriteError`]: Returned if the I2C write to set _either_ the Hysteresis or
       Limit-Set register failed. The register pointer cache is flushed.
 
-    [disallows]: ./struct.Limits.html
+    [disallow]: ./struct.Limits.html
+    [`Limits`]: ./struct.Limits.html
     [polarity]: ./enum.AlertPolarity.html
     [`Tcn75aError::WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
@@ -669,7 +674,8 @@ where
 
     No I2C transactions occur in this function. The wrapped [`embedded_hal`] instance is
     returned. You can call [`Tcn75a::new`] again with the returned instance to create a new
-    `Tcn75a` struct associated with the same (or different) TCN75A device with undefined caches.
+    `Tcn75a` struct associated with the same (or a different) TCN75A device with undefined
+    caches.
 
     # Examples
 
