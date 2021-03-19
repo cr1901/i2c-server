@@ -1,11 +1,11 @@
 use cfg_if::cfg_if;
-use crossterm::{cursor, ExecutableCommand, QueueableCommand};
 use fixed::types::I8F8;
 use fixed_macro::fixed;
 use std::io::{stdout, Write};
 
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
+        use crossterm::{cursor, ExecutableCommand, QueueableCommand};
         use linux_embedded_hal::{I2cdev, i2cdev::linux::LinuxI2CError};
         use tcn75a::*;
         use argh::FromArgs;

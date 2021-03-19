@@ -15,9 +15,9 @@ fixed-macro = "1.1"
 [dev-dependencies]
 embedded-hal-mock = "0.7.2"
 cfg-if = "0.1.10"
-crossterm = "0.19.0"
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dev-dependencies]
+crossterm = "0.19.0"
 linux-embedded-hal = "0.3.0"
 textplots = "0.5.3"
 argh = "0.1.3"
