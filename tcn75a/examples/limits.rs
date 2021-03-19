@@ -52,8 +52,8 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     tcn.set_reg_ptr(0).unwrap();
     let temp = tcn.temperature().unwrap();
 
-    let temp_lo : I8F8 = I8F8::from(temp) + fixed!(1: I8F8);
-    let temp_hi : I8F8 = I8F8::from(temp) + fixed!(2: I8F8);
+    let temp_lo: I8F8 = I8F8::from(temp) + fixed!(1: I8F8);
+    let temp_hi: I8F8 = I8F8::from(temp) + fixed!(2: I8F8);
     tcn.set_limits((temp_lo, temp_hi).try_into().unwrap())
         .unwrap();
 

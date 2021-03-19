@@ -27,25 +27,23 @@ where
 
     // This test only works if you're in a room with temperature > 0C!
     // Annotations must be included or inferred type is ()?!
-    let temp9 : I8F8 = match tcn.temperature() {
+    let temp9: I8F8 = match tcn.temperature() {
         Ok(t) => {
             assert!(I8F8::from(t) > I8F8::from_num(0));
             t.into()
-        },
-        _ => panic!("Could not get temperature reading")
+        }
+        _ => panic!("Could not get temperature reading"),
     };
 
     cfg.set_resolution(Resolution::Bits12);
     assert!(tcn.set_config_reg(cfg).is_ok());
 
     // Check that 12-bit temp has is within 0.5C of 9-bit temp.
-    let temp12 : I8F8 = match tcn.temperature() {
-        Ok(t) => {
-            t.into()
-        },
-        _ => panic!("Could not get temperature reading")
+    let temp12: I8F8 = match tcn.temperature() {
+        Ok(t) => t.into(),
+        _ => panic!("Could not get temperature reading"),
     };
-    let one_half = I8F8::from_num(1)/2;
+    let one_half = I8F8::from_num(1) / 2;
     assert!((temp9 + one_half) >= temp12 && (temp9 - one_half) <= temp12);
 }
 

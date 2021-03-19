@@ -451,7 +451,7 @@ where
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
-    let limits : Limits = (fixed!(25.0: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
+    let limits: Limits = (fixed!(25.0: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
     // Attached to a microcontroller, use Interrupt mode when temperature
     // exceeds/falls below limits (alert pin asserts when temp goes above 30C,
     // and then again when temp falls below 25C).
@@ -618,7 +618,7 @@ where
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
     // 9-bit fixed-point numbers- 25.5C to 30C
-    let limits : Limits = (fixed!(25.5: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
+    let limits: Limits = (fixed!(25.5: I8F8), fixed!(30.0: I8F8)).try_into().unwrap();
     // Asserted alert is default active-low at power-on reset.
     // Let's still treat active-high as the "everything's okay" condition.
     cfg.set_alert_polarity(AlertPolarity::ActiveHigh);
@@ -645,7 +645,7 @@ where
     */
     pub fn set_limits(&mut self, limits: Limits) -> Result<(), Error<T>> {
         let mut buf: [u8; 3] = [0u8; 3];
-        let (mut lower, mut upper) : (I8F8, I8F8) = limits.into();
+        let (mut lower, mut upper): (I8F8, I8F8) = limits.into();
 
         // Reg ptr
         buf[0] = 0x02;
@@ -716,7 +716,9 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{Temperature, AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
+    use super::{
+        AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError, Temperature,
+    };
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
@@ -818,8 +820,14 @@ mod tests {
         // bits.
         // (127 << 4) + 8 <= Q8.4
         // << 4 <= Q8.8/I8F8
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4))));
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4))));
+        assert_eq!(
+            tcn.temperature(),
+            Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4)))
+        );
+        assert_eq!(
+            tcn.temperature(),
+            Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4)))
+        );
 
         let i2c = tcn.free();
         let mut tcn = Tcn75a::new(i2c, 0x49);
@@ -827,7 +835,10 @@ mod tests {
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.cfg, None);
 
-        assert_eq!(tcn.temperature(), Ok(Temperature(I8F8::from_bits(((0 << 4) - 1) << 4))));
+        assert_eq!(
+            tcn.temperature(),
+            Ok(Temperature(I8F8::from_bits(((0 << 4) - 1) << 4)))
+        );
     }
 
     #[test]
@@ -998,8 +1009,14 @@ mod tests {
             0x48,
         );
 
-        assert_eq!(tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()), Ok(()));
-        assert_eq!(tcn.limits().unwrap().try_into(), Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8))));
+        assert_eq!(
+            tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()),
+            Ok(())
+        );
+        assert_eq!(
+            tcn.limits().unwrap().try_into(),
+            Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8)))
+        );
     }
 
     #[test]
@@ -1023,6 +1040,9 @@ mod tests {
             tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()),
             Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
         );
-        assert_eq!(tcn.limits().unwrap().try_into(), Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8))));
+        assert_eq!(
+            tcn.limits().unwrap().try_into(),
+            Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8)))
+        );
     }
 }

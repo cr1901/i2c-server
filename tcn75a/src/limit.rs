@@ -48,7 +48,7 @@ use fixed::types::I8F8;
 use fixed_macro::fixed;
 
 let orig = (fixed!(0: I8F8), fixed!(127.5: I8F8));
-let lims : Limits = orig.try_into().unwrap();
+let lims: Limits = orig.try_into().unwrap();
 let restored = lims.into();
 assert_eq!(orig, restored);
 ```
@@ -148,7 +148,10 @@ mod tests {
     #[test]
     fn test_limit_err() {
         assert_eq!(
-            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((fixed!(-127.75: I8F8), fixed!(127.75: I8F8))),
+            <Limits as TryFrom<(I8F8, I8F8)>>::try_from((
+                fixed!(-127.75: I8F8),
+                fixed!(127.75: I8F8)
+            )),
             Err(LimitError::BothOutOfRange)
         );
         assert_eq!(

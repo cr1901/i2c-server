@@ -26,9 +26,9 @@ can be used simultaneously with its contained [`I8F8`].
 # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
 # let mut tcn = Tcn75a::new(i2c, 0x48);
 use fixed::types::I8F8;
-let temp0 : I8F8 = tcn.temperature()?.into();
+let temp0: I8F8 = tcn.temperature()?.into();
 // ... Assume some time has passed.
-let temp1 : I8F8 = tcn.temperature()?.into();
+let temp1: I8F8 = tcn.temperature()?.into();
 
 if temp0 < temp1 {
     println!("Temperature is going up.");
@@ -51,7 +51,8 @@ if temp0 < temp1 {
 [`FixedI16::<U8>`]: ../fixed/struct.FixedI16.html
 [`I8F8`]: ../fixed/types/type.I8F8.html
 [`fixed`]: ../fixed/index.html
-[`Copy`]: https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html */
+[`Copy`]: https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html
+*/
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Temperature(pub(crate) I8F8);
 
