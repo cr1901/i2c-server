@@ -1,4 +1,5 @@
 use core::convert::{From, TryFrom};
+use core::fmt;
 use fixed::types::I8F8;
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
@@ -92,6 +93,17 @@ pub enum LimitError {
     HighOutOfRange,
     /** The Hysteresis value is greater than _or equal to_ the Limit-Set value provided. */
     LowExceedsHigh,
+}
+
+impl fmt::Display for LimitError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LimitError::BothOutOfRange => write!(f, "both hysteresis and limit-set register values out of range"),
+            LimitError::LowOutOfRange => write!(f, "hysteresis register value out of range"),
+            LimitError::HighOutOfRange => write!(f, "limit-set register value out of range"),
+            LimitError::LowExceedsHigh => write!(f, "hysteresis register value exceeds limit-set register value"),
+        }
+    }
 }
 
 impl TryFrom<(I8F8, I8F8)> for Limits {

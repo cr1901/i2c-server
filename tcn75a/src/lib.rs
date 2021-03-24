@@ -22,6 +22,7 @@ operation is possible at the cost of performance, but not implemented.
 #![no_std]
 
 use core::convert::TryFrom;
+use core::fmt;
 use core::result::Result;
 use embedded_hal::blocking::i2c::{Read, Write};
 use fixed::types::I8F8;
@@ -90,6 +91,18 @@ pub enum Tcn75aError<R, W> {
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     WriteError(W),
+}
+
+impl<R, W> fmt::Display for Tcn75aError<R, W> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Tcn75aError::<R, W>::OutOfRange => write!(f, "temperature reading out of range"),
+            Tcn75aError::<R, W>::LimitError(_e) => write!(f, "limit registers out of range"),
+            Tcn75aError::<R, W>::RegPtrError(_w) => write!(f, "error writing register pointer"),
+            Tcn75aError::<R, W>::ReadError(_r) => write!(f, "generic read error"),
+            Tcn75aError::<R, W>::WriteError(_w) => write!(f, "generic write error"),
+        }
+    }
 }
 
 /** Convenience type for representing [`Tcn75aError`]s where `T` implements both [`Read`]

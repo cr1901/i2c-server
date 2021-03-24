@@ -5,11 +5,14 @@ use std::io::{stdout, Write};
 
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
-        use crossterm::{cursor, ExecutableCommand, QueueableCommand};
-        use linux_embedded_hal::{I2cdev, i2cdev::linux::LinuxI2CError};
+        use crossterm::{cursor, ExecutableCommand};
+        use linux_embedded_hal::I2cdev;
         use tcn75a::*;
         use argh::FromArgs;
-        use std::error::Error as ErrorTrait;
+        // no_std crates don't have access to the Error trait. However, because tcn75a crate
+        // error types impl Display, we can use the eyre crate to ad-hoc convert our error types
+        // to ones that impl Error via the eyre! macro.
+        use eyre::{eyre, Result};
         use std::convert::TryInto;
         use std::thread::sleep;
         use std::time::Duration;
@@ -35,7 +38,7 @@ cfg_if! {
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-fn main() -> Result<(), Box<dyn ErrorTrait>> {
+fn main() -> Result<()> {
     let args: InputArgs = argh::from_env();
 
     let i2c: I2cdev = I2cdev::new(args.bus)?;
@@ -47,15 +50,14 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     cfg.set_comp_int(CompInt::Comparator);
     cfg.set_alert_polarity(AlertPolarity::ActiveHigh);
     cfg.set_fault_queue(FaultQueue::One);
-    tcn.set_config_reg(cfg);
+    tcn.set_config_reg(cfg).map_err(|_e| eyre!("failed to set config reg"))?;
 
-    tcn.set_reg_ptr(0).unwrap();
-    let temp = tcn.temperature().unwrap();
+    let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
 
     let temp_lo: I8F8 = I8F8::from(temp) + fixed!(1: I8F8);
     let temp_hi: I8F8 = I8F8::from(temp) + fixed!(2: I8F8);
     tcn.set_limits((temp_lo, temp_hi).try_into().unwrap())
-        .unwrap();
+        .map_err(|_e| eyre!("failed to set temperature sensor limits"))?;
 
     println!(
         "Target temp is {} C! Press your finger against the sensor!",
@@ -65,12 +67,12 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     let mut stdout = stdout();
 
     loop {
-        let temp = tcn.temperature().unwrap();
+        let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
 
-        stdout.execute(cursor::SavePosition);
-        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes());
-        stdout.execute(cursor::RestorePosition);
-        stdout.flush();
+        stdout.execute(cursor::SavePosition)?;
+        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;
+        stdout.execute(cursor::RestorePosition)?;
+        stdout.flush()?;
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
@@ -82,12 +84,12 @@ fn main() -> Result<(), Box<dyn ErrorTrait>> {
     println!("\nRelease finger from sensor! Waiting for {} C!", temp_lo);
 
     loop {
-        let temp = tcn.temperature().unwrap();
+        let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
 
-        stdout.execute(cursor::SavePosition);
-        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes());
-        stdout.execute(cursor::RestorePosition);
-        stdout.flush();
+        stdout.execute(cursor::SavePosition)?;
+        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;
+        stdout.execute(cursor::RestorePosition)?;
+        stdout.flush()?;
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
