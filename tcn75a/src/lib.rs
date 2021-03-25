@@ -76,7 +76,7 @@ where
     reason from [`Write::Error`]. For register writes, [`WriteError`] is returned if the register
     pointer failed to update.
 
-    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html
+    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     RegPtrError(<W as Write>::Error),
@@ -295,10 +295,13 @@ where
     pointer cache will point to register 0 after this function returns. The sensor config
     cache is untouched.
 
+    # Internals
+
     Currently the [`temperature`] function does not use the [`Resolution`] data in the config
-    cache. Each measurement returned is treated as a [`Q12.4`][`Q` format] number with the
-    most-significant 4 bits unused, and some of the least-significant 4 bits _possibly_ unused.
-    For instance, the same temperature reading at different resolutions might be as follows:
+    cache. Each measurement returned is treated as a [`Q8.8`][`Q` format] number with the
+    least-significant 4 bits unused, and some of bits 4 to 7 _possibly_ unused.
+    For instance, the same temperature reading at different resolutions might be as follows
+    (plus a negative temperature, for comparison):
 
     <table>
         <thead>
@@ -308,22 +311,27 @@ where
             <tr>
                 <td><a href="enum.Resolution.html#variant.Bits9"><code>Bits9</code></a></td>
                 <td>30.5</td>
-                <td><code>0b0000_01001000_1000</code> (488)</td>
+                <td><code>0b01001000_1000_0000</code> (0x4880)</td>
             </tr>
             <tr>
                 <td><a href="enum.Resolution.html#variant.Bits10"><code>Bits10</code></a>
                 </td><td>30.5 </td>
-                <td><code>0b0000_01001000_1000</code> (488)</td>
+                <td><code>0b01001000_1000_0000</code> (0x4880)</td>
             </tr>
             <tr>
                 <td><a href="enum.Resolution.html#variant.Bits11"><code>Bits11</code></a>
                 </td><td>30.375</td>
-                <td><code>0b0000_01001000_0110</code> (486)</td>
+                <td><code>0b01001000_0110_0000</code> (0x4860)</td>
             </tr>
             <tr>
                 <td><a href="enum.Resolution.html#variant.Bits12"><code>Bits12</code></a>
                 </td><td>30.4375</td>
-                <td><code>0b0000_01001000_0111</code> (487)</td>
+                <td><code>0b01001000_0111_0000</code> (0x4870)</td>
+            </tr>
+            <tr>
+                <td><a href="enum.Resolution.html#variant.Bits9"><code>Bits9</code></a></td>
+                <td>-10.5</td>
+                <td><code>0b11110101_1000_0000</code> (0xF580)</td>
             </tr>
         </tbody>
     </table>
@@ -364,7 +372,7 @@ where
 
       Currently an [`OutOfRange`][`Tcn75aError::OutOfRange`] error is conservative, because
       [`temperature`] does not use cached [`Resolution`] data; it will not detect e.g. "bits set
-      that indicate a 12-bit value, but the [`Resolution`] is [`Resolution::Bits9`].
+      that indicate a 12-bit value, but the [`Resolution`] is [`Resolution::Bits9`]".
 
     [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
     [`Q` format]: https://en.wikipedia.org/wiki/Q_(number_format)
