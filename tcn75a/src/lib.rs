@@ -773,7 +773,7 @@ mod tests {
     use std::vec;
 
     use super::{
-        AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError, Temperature,
+        AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError,
     };
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
@@ -876,13 +876,17 @@ mod tests {
         // bits.
         // (127 << 4) + 8 <= Q8.4
         // << 4 <= Q8.8/I8F8
+        let temp = tcn.temperature();
+        assert!(temp.is_ok());
         assert_eq!(
-            tcn.temperature(),
-            Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4)))
+            I8F8::from(temp.unwrap()),
+            I8F8::from_bits(((127 << 4) + 8) << 4)
         );
+        let temp = tcn.temperature();
+        assert!(temp.is_ok());
         assert_eq!(
-            tcn.temperature(),
-            Ok(Temperature(I8F8::from_bits(((127 << 4) + 8) << 4)))
+            I8F8::from(temp.unwrap()),
+            I8F8::from_bits(((127 << 4) + 8) << 4)
         );
 
         let i2c = tcn.free();
@@ -891,9 +895,11 @@ mod tests {
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.cfg, None);
 
+        let temp = tcn.temperature();
+        assert!(temp.is_ok());
         assert_eq!(
-            tcn.temperature(),
-            Ok(Temperature(I8F8::from_bits(((0 << 4) - 1) << 4)))
+            I8F8::from(temp.unwrap()),
+            I8F8::from_bits(((0 << 4) - 1) << 4)
         );
     }
 
@@ -907,7 +913,9 @@ mod tests {
             0x48,
         );
 
-        assert_eq!(tcn.temperature(), Err(Tcn75aError::OutOfRange));
+        let temp = tcn.temperature();
+        assert!(temp.is_err());
+        assert_eq!(temp.unwrap_err(), Tcn75aError::OutOfRange);
     }
 
     #[test]

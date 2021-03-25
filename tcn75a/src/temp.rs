@@ -53,7 +53,7 @@ if temp0 < temp1 {
 [`fixed`]: ../fixed/index.html
 [`Copy`]: https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html
 */
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Temperature(pub(crate) I8F8);
 
 impl From<Temperature> for I8F8 {
