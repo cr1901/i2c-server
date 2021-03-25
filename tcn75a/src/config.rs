@@ -303,4 +303,17 @@ mod tests {
         let val = u8::from_le_bytes(cfg.into_bytes().try_into().unwrap());
         assert_eq!(val, 0);
     }
+
+    #[test]
+    fn test_fallible_conversions() {
+        let good_res: Result<Resolution, ConfigRegValueError> = 9.try_into();
+        let good_fault: Result<FaultQueue, ConfigRegValueError> = 2.try_into();
+        let bad_res: Result<Resolution, ConfigRegValueError> = 13.try_into();
+        let bad_fault: Result<FaultQueue, ConfigRegValueError> = 5.try_into();
+
+        assert_eq!(good_res, Ok(Resolution::Bits9));
+        assert_eq!(good_fault, Ok(FaultQueue::Two));
+        assert_eq!(bad_res, Err(ConfigRegValueError(())));
+        assert_eq!(bad_fault, Err(ConfigRegValueError(())));
+    }
 }
