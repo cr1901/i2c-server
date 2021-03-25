@@ -50,9 +50,12 @@ fn main() -> Result<()> {
     cfg.set_comp_int(CompInt::Comparator);
     cfg.set_alert_polarity(AlertPolarity::ActiveHigh);
     cfg.set_fault_queue(FaultQueue::One);
-    tcn.set_config_reg(cfg).map_err(|_e| eyre!("failed to set config reg"))?;
+    tcn.set_config_reg(cfg)
+        .map_err(|_e| eyre!("failed to set config reg"))?;
 
-    let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
+    let temp = tcn
+        .temperature()
+        .map_err(|_e| eyre!("failed to read a temperature"))?;
 
     let temp_lo: I8F8 = I8F8::from(temp) + fixed!(1: I8F8);
     let temp_hi: I8F8 = I8F8::from(temp) + fixed!(2: I8F8);
@@ -67,7 +70,9 @@ fn main() -> Result<()> {
     let mut stdout = stdout();
 
     loop {
-        let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
+        let temp = tcn
+            .temperature()
+            .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
         stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;
@@ -84,7 +89,9 @@ fn main() -> Result<()> {
     println!("\nRelease finger from sensor! Waiting for {} C!", temp_lo);
 
     loop {
-        let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
+        let temp = tcn
+            .temperature()
+            .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
         stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;

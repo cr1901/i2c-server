@@ -22,7 +22,7 @@ can be used simultaneously with its contained [`I8F8`].
 # use linux_embedded_hal::I2cdev;
 # use embedded_hal::blocking::i2c::{Read, Write};
 # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution};
-# fn main() -> Result<(), Tcn75aError<<I2cdev as Read>::Error, <I2cdev as Write>::Error>> {
+# fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
 # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
 # let mut tcn = Tcn75a::new(i2c, 0x48);
 use fixed::types::I8F8;

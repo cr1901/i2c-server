@@ -98,10 +98,16 @@ pub enum LimitError {
 impl fmt::Display for LimitError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LimitError::BothOutOfRange => write!(f, "both hysteresis and limit-set register values out of range"),
+            LimitError::BothOutOfRange => write!(
+                f,
+                "both hysteresis and limit-set register values out of range"
+            ),
             LimitError::LowOutOfRange => write!(f, "hysteresis register value out of range"),
             LimitError::HighOutOfRange => write!(f, "limit-set register value out of range"),
-            LimitError::LowExceedsHigh => write!(f, "hysteresis register value exceeds limit-set register value"),
+            LimitError::LowExceedsHigh => write!(
+                f,
+                "hysteresis register value exceeds limit-set register value"
+            ),
         }
     }
 }
