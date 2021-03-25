@@ -780,9 +780,7 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{
-        AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError,
-    };
+    use super::{AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
