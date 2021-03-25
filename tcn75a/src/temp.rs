@@ -4,10 +4,14 @@ use fixed::types::I8F8;
 
 /** A struct representing a temperature reading from the TCN75A.
 
-# Invariants
+# Internals
 
 [`Temperature`] is a [newtype] over the [`FixedI16::<U8>`] ([`I8F8`]) type provided by the
-[`fixed`] crate. The user cannot create this type; it mainly exists to provide a runtime
+[`fixed`] crate.
+
+# Invariants
+
+The user cannot create this type; it mainly exists to provide a runtime
 guarantee that the contained data was successfully read from the TCN75A.
 
 # Examples
@@ -26,16 +30,18 @@ can be used simultaneously with its contained [`I8F8`].
 # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
 # let mut tcn = Tcn75a::new(i2c, 0x48);
 use fixed::types::I8F8;
+use fixed_macro::fixed;
+
 let temp0: I8F8 = tcn.temperature()?.into();
 // ... Assume some time has passed.
-let temp1: I8F8 = tcn.temperature()?.into();
+let baseline: I8F8 = fixed!(25.0 : I8F8);
 
-if temp0 < temp1 {
-    println!("Temperature is going up.");
-} else if temp0 > temp1 {
-    println!("Temperature is going down.");
+if temp0 < baseline {
+    println!("Temperature is less than 25.0C.");
+} else if temp0 > baseline {
+    println!("Temperature is greater than 25.0C.");
 } else {
-    println!("Temperature is constant.");
+    println!("Temperature is 25.0C.");
 }
 # Ok(())
 # }

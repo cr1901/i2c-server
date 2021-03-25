@@ -9,15 +9,17 @@ the temperature range that the TCN75A should monitor. When the temperature is ab
 Limit-Set Register, the alert pin will assert. The alert pin will _remain_ asserted until the
 temperature goes below the value in the Hysteresis register.
 
-Temperatures are represented as 9-bit signed integers ([`Q8.1`]), which corresponds to 0.5 degrees
-Celsius precision. Internally, this crate represents [`Q8.1`] integers as [`FixedI16::<U8>`]
-types, or [`I8F8`] for short. To create values of type [`I8F8`], you are encouraged to use the
-[`fixed_macro`] crate, as in the [example][limit_example].
-
 The silicon can tolerate swapped Hysteresis and Limit-Set registers, but to avoid potential
 confusing TCN75A behavior, this crate does not allow it in normal operation. For rationale as
 to why the Hysteresis register can also be treated a low temperature alert, see the [`set_limits`]
 documentation [examples].
+
+# Internals
+
+Temperatures are represented as 9-bit signed integers ([`Q8.1`]), which corresponds to 0.5 degrees
+Celsius precision. Internally, this crate represents [`Q8.1`] integers as [`FixedI16::<U8>`]
+types, or [`I8F8`] for short. To create values of type [`I8F8`], you are encouraged to use the
+[`fixed_macro`] crate, as in the [example][limit_example].
 
 # Invariants
 

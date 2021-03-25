@@ -4,11 +4,14 @@ sensors over an I2C bus.
 The TCN75A consists of 4 registers and a writeable register pointer. Three registers are for
 configuration, represented as the following:
 
-* Sensor Configuration Register (various `enum`s)
-* Temperature Hysteresis Register (`i16`, -256 to 255)
-* Temperature Limit-Set Register (`i16`, -256 to 255)
+* Sensor Configuration Register (various [`enum`s][`ConfigReg`])
+* Temperature Hysteresis Register ([`FixedI16::<U8>`] ([`I8F8`]), -128.0 to 127.5, 0.5 degrees
+  Celsius resolution)
+* Temperature Limit-Set Register ([`FixedI16::<U8>`] ([`I8F8`]), -128.0 to 127.5, 0.5 degrees
+  Celsius resolution)
 
-The remaining register contains the current temperature as an `i16`, from -2048 to 2047.
+The remaining register contains the current temperature as an [`FixedI16::<U8>`] ([`I8F8`]),
+from -128.0 to 127.9375 (variable increments based on [`Resolution`]).
 
 To avoid redundant register reads and write, the `tcn75a` crate caches the contents of some
 registers (particularly the register pointer and Sensor Configuration Register). At present,
@@ -17,7 +20,10 @@ operation is possible at the cost of performance, but not implemented.
 
 [Embedded HAL]: https://github.com/rust-embedded/embedded-hal
 [TCN75A]: https://www.microchip.com/wwwproducts/TCN75A
-
+[`ConfigReg`]: ./struct.ConfigReg.html
+[`FixedI16::<U8>`]: ../fixed/struct.FixedI16.html
+[`I8F8`]: ../fixed/types/type.I8F8.html
+[`Resolution`]: ./enum.Resolution.html
 */
 #![no_std]
 

@@ -56,9 +56,11 @@ pub struct ConfigReg {
 
 /** Error type due to failed conversions from u8 into Configuration Register fields.
 
+# Examples
+
 This type cannot be created by the user. The main use of this type is to handle invalid
 user-supplied config register values for the [`Resolution`] and [`FaultQueue`] Configuration
-Registers fields.:
+Registers fields:
 
 ```
 # use std::convert::Into;
@@ -94,8 +96,12 @@ pub enum OneShot {
 /** ADC Resolution bits in the Sensor Configuration Register.
 
 Consult the TCN75A [datasheet] for information on the meanings of each variant.
-Variant names will be similar to the datasheet (changes in the datasheet names
-in subsequent silicon revisions may constitute a breaking API change).
+Variant names will be similar to the datasheet (changes in the datasheet names or resolutions in
+subsequent silicon revisions may constitute a breaking API change. As of this writing, the
+supported resolutions are `9`, `10`, `11`, and `12` bits, corresponding to `0.5`, `0.25`, `0.125`,
+and `0.0625` degrees Celsius precision).
+
+# Examples
 
 You can convert the `u8` values `9`, `10`, `11`, and `12` into a [`Resolution`] and
 vice-versa using [`TryFrom<u8>`][`TryFrom`] and [`From<Resolution>`][`From`] respectively:
@@ -157,6 +163,8 @@ impl TryFrom<u8> for Resolution {
 Consult the TCN75A [datasheet] for information on the meanings of each variant.
 Variant names will be similar to the datasheet (changes in the datasheet names
 in subsequent silicon revisions may constitute a breaking API change).
+
+# Examples
 
 You can convert the `u8` values `1`, `2`, `4`, and `6` into a [`FaultQueue`] and
 vice-versa using [`TryFrom<u8>`][`TryFrom`] and [`From<FaultQueue>`][`From`] respectively:
