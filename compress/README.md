@@ -92,6 +92,10 @@ Spaces in the Code Word rows delimit prefixes.
    or one or multiple `00` code words, meaning "no change from previous
    sample".
 
+3. Although zero runs are common, each zero run is less common than an
+   increment or decrement on average. This is why +/-1 comes first in the
+   table.
+
 ### Sample Rate
 The sample rate is not specified in the compression- it should be sent
 out-of-band. but samples should nominally be evenly spaced apart. Errors can be
