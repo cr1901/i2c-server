@@ -46,6 +46,7 @@ together without any padding bits._
 
 ### Code Words
 In the below diagrams, the code words are displayed most significant bit first.
+Spaces in the Code Word rows delimit prefixes.
 
 |Code Word       |Type    |Interpretation                                                        |
 |----------------|--------|----------------------------------------------------------------------|
@@ -55,21 +56,24 @@ In the below diagrams, the code words are displayed most significant bit first.
 |011 1           |Diff    |-1 change from previous sample.                                       |
 |100 00          |Diff    |Zero change from previous three samples.                              |
 |100 01          |Diff    |Zero change from previous four samples.                               |
-|100 110         |Event   |No value/no measurement taken this sample.                            |
-|100 100         |Event   |Reserved. Probably "clock went backwards".                            |
-|100 101         |Event   |Reserved. Probably "long term jitter error".                          |
-|100 111         |Event   |Reserved.  Probably "user event".                                     |
+|100 110         |Diff    |Zero change from previous seven samples.                              |
+|100 100         |Diff    |Zero change from previous eight samples.                              |
+|100 101         |Diff    |Zero change from previous nine samples.                               |
+|100 111         |Diff    |Zero change from previous 10 samples.                                 |
 |101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 11-256.      |
-|101 00000000    |N/A     |Reserved. Equivalent to "Zero change from previous sample".           |
-|101 00000001    |N/A     |Reserved. Equivalent to "Zero change from previous two samples".      |
-|101 00000010    |N/A     |Reserved. Equivalent to "Zero change from previous three samples".    |
+|101 00000010    |Event   |No value/no measurement taken this sample.                            |
+|101 00000000    |Event   |Reserved. Probably "clock went backwards".                            |
+|101 00000001    |Event   |Reserved. Probably "long term jitter error".                          |
+|101 00000011    |Event   |Reserved. Probably "user event".                                      |
 |110 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
 |111 00          |Diff    |Zero change from previous five samples.                               |
 |111 01          |Diff    |Zero change from previous six samples.                                |
-|111 100         |Diff    |Zero change from previous seven samples.                              |
-|111 101         |Diff    |Zero change from previous eight samples.                              |
-|111 110         |Diff    |Zero change from previous nine samples.                               |
-|111 111         |Diff    |Zero change from previous ten samples.                                |
+|111 100         |Diff    |Zero change from previous 11 samples.                                 |
+|111 101         |Diff    |Zero change from previous 12  samples.                                |
+|111 1100        |Diff    |Zero change from previous 13 samples.                                 |
+|111 1101        |Diff    |Zero change from previous 14 samples.                                 |
+|111 1110        |Diff    |Zero change from previous 15 samples.                                 |
+|111 1111        |Diff    |Zero change from previous 16 samples.                                 |
 
 ### Design Remarks
 1. The Run-Length Encoded zero encoding was based on the taking sample data
@@ -78,8 +82,8 @@ In the below diagrams, the code words are displayed most significant bit first.
    ranging from 1 to about 256 zeroes.
 
    From testing, maximum compression savings comes from giving short runs of
-   zeroes (up to 3) smaller encodings, while using the RLE code word for runs
-   of 4 to 256; the RLE encoding of up to 3 runs is reserved.
+   zeroes (up to 16) smaller encodings, while using the RLE code word for runs
+   of 17 to 256; the RLE encoding of up to 16 zeroes is reserved for events.
 
 2. The length of the uncompresed data is not encoded in the compressed data,
    and is provided out of band (file size, number of bytes read from a socket,

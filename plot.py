@@ -134,9 +134,10 @@ if __name__ == "__main__":
     run_length = runs[:,1] - runs[:,0]
     rl_values, rl_counts = np.unique(run_length, return_counts=True)
 
-    print("{} unique zero runs".format(np.sum(rl_counts)))
-    print("{} total zero bits".format(np.sum(rl_values * rl_counts)))
-    print("{} total non-zero measurements".format(len(diffs[diffs != 0.0])))
+    print("  {} total measurements".format(len(avg_temps[0])))
+    print("  {} unique zero runs".format(np.sum(rl_counts)))
+    print("  {} total zero bits".format(np.sum(rl_values * rl_counts)))
+    print("  {} total non-zero diffs".format(len(diffs[diffs != 0.0])))
     rl_counts_norm = rl_counts / np.sum(rl_counts)
 
     hfig, ax = plt.subplots(figsize=(10, 8))
@@ -149,20 +150,36 @@ if __name__ == "__main__":
 
     print("Entropy calculations...")
     theoretical_entropy = np.sum(rl_counts_norm*-np.log2(rl_counts_norm))
-    print("Theoretical: {} bits/symbol".format(theoretical_entropy))
+    print("  Theoretical: {} bits/symbol".format(theoretical_entropy))
 
     # The length of the run == the number of zero bits stored per run.
     # This is only mildly more efficient than 8-bit RLE for all values, even
     # _with_ the extra "0" prefix bit (avg. 9 bits/symbol)!
     bits_per_codeword_no_rle = np.sum(rl_values * rl_counts_norm)
-    print("No RLE: {} bits/symbol".format(bits_per_codeword_no_rle))
+    print("  No RLE: {} bits/symbol".format(bits_per_codeword_no_rle))
 
     # 00, 010, 0110
     # 0111: run-length.
     rle_bits_required = 3 + 8
                # 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-    rl_start =  [2, 3, 5, 5, 5, 5, 6, 6, 6, 6]
+    rl_start =  [2, 3, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7]
     rl_rest = [rle_bits_required] * len(rl_values[(rl_values > len(rl_start))])
 
     bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
-    print("RLE: {} bits/symbol".format(bits_per_codeword_rle))
+    print("  RLE: {} bits/symbol".format(bits_per_codeword_rle))
+
+    print("Rough compression estimate...")
+    print("Assumes: RLE, one single leading absolute measurement")
+    initial_abs_bits = 15
+    bits_per_measurement = 12
+    nonzero_bits = 4
+
+    total_zero_bits = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts)
+    # 4 bits per +/-1 increment.
+    total_nonzero_bits = np.sum(nonzero_bits*len(diffs[diffs != 0.0]))
+    total_compressed_bits = total_zero_bits + total_nonzero_bits + initial_abs_bits
+    uncompressed_bits = bits_per_measurement*len(avg_temps[0])
+
+    print("  Zero bits: {}".format(total_zero_bits))
+    print("  Nonzero bits: {}".format(total_nonzero_bits))
+    print("  Compression ratio: {}".format(total_compressed_bits/uncompressed_bits))
