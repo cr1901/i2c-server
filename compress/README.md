@@ -52,28 +52,28 @@ Spaces in the Code Word rows delimit prefixes.
 |----------------|--------|----------------------------------------------------------------------|
 |00              |Diff    |+1 change from previous sample.                                       |
 |01              |Diff    |-1 change from previous sample.                                       |
-|100 00          |Diff    |Zero change from previous sample.                                     |
-|100 01          |Diff    |Zero change from previous two samples.                                |
-|100 100         |Diff    |Zero change from previous five samples.                               |
-|100 101         |Diff    |Zero change from previous six samples.                                |
-|100 110         |Diff    |Zero change from previous seven samples.                              |
-|100 111         |Diff    |Zero change from previous eight samples.                              |
+|100 0           |Diff    |Zero change from previous sample.                                     |
+|100 10          |Diff    |Zero change from previous three samples.                              |
+|100 110         |Diff    |Zero change from previous five samples.                               |
+|100 1110        |Diff    |Zero change from previous seven samples.                              |
+|100 11110       |Diff    |Zero change from previous nine samples.                               |
+|100 11111       |Diff    |Zero change from previous 10 samples.                                 |
 |101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 17-256.      |
 |101 00000010    |Event   |No value/no measurement taken this sample.                            |
 |101 00000000    |Event   |Reserved. Probably "clock went backwards".                            |
 |101 00000001    |Event   |Reserved. Probably "long term jitter error".                          |
 |101 00000011    |Event   |Reserved. Probably "user event".                                      |
 |110 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
-|111 00          |Diff    |Zero change from previous three samples.                              |
-|111 01          |Diff    |Zero change from previous four samples.                               |
-|111 100         |Diff    |Zero change from previous nine samples.                               |
-|111 101         |Diff    |Zero change from previous 10  samples.                                |
-|111 1100        |Diff    |Zero change from previous 11 samples.                                 |
-|111 1101        |Diff    |Zero change from previous 12 samples.                                 |
-|111 11100       |Diff    |Zero change from previous 13 samples.                                 |
-|111 11101       |Diff    |Zero change from previous 14 samples.                                 |
-|111 11110       |Diff    |Zero change from previous 15 samples.                                 |
-|111 11111       |Diff    |Zero change from previous 16 samples.                                 |
+|111 0           |Diff    |Zero change from previous two samples.                                |
+|111 10          |Diff    |Zero change from previous four samples.                               |
+|111 110         |Diff    |Zero change from previous six samples.                                |
+|111 1110        |Diff    |Zero change from previous eight samples.                              |
+|111 111100      |Diff    |Zero change from previous 11 samples.                                 |
+|111 111101      |Diff    |Zero change from previous 12 samples.                                 |
+|111 1111100     |Diff    |Zero change from previous 13 samples.                                 |
+|111 1111101     |Diff    |Zero change from previous 14 samples.                                 |
+|111 1111110     |Diff    |Zero change from previous 15 samples.                                 |
+|111 1111111     |Diff    |Zero change from previous 16 samples.                                 |
 
 ### Design Remarks
 1. The Run-Length Encoded zero encoding was based on the taking sample data

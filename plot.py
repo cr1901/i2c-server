@@ -161,8 +161,8 @@ if __name__ == "__main__":
     # 00, 010, 0110
     # 0111: run-length.
     rle_bits_required = 3 + 8
-               # 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-    rl_start =  [5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7, 8, 8, 8, 8]
+               # 1  2  3  4  5  6  7  8  9  10 11 12 13  14  15  16
+    rl_start =  [4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 10, 10]
     rl_rest = [rle_bits_required] * len(rl_values[(rl_values > len(rl_start))])
 
     bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
