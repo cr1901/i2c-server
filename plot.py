@@ -81,6 +81,26 @@ def write_plot(time, avg_temps, use_timestamp=False, marker_size=1):
     ax2.set_ylim(to_celsius(y1), to_celsius(y2))
     return fig
 
+#%%
+# https://stackoverflow.com/questions/24885092/finding-the-consecutive-zeros-in-a-numpy-array
+def zero_runs(a):
+    # Create an array that is 1 where a is 0, and pad each end with an extra 0.
+    iszero = np.concatenate(([0], np.equal(a, 0).view(np.int8), [0]))
+    absdiff = np.abs(np.diff(iszero))
+    # Runs start and end where absdiff is 1.
+    ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
+    return ranges
+
+#%%
+def write_hist(zeros):
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    ax.set(xlabel="Number of zeros",
+           ylabel="Total bit count",
+           title="Zero runs historgram")
+    ax.hist(zeros, bins=max())
+
+    return fig
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot I2C Data from I2C Server.")
@@ -92,6 +112,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--timestamp", action="store_true", help="Use timestamps in plot instead of starting at 0 seconds.")
     parser.add_argument("-m", "--marker-size", type=int, default=1, help="Marker size of the raw data. Default: 1.")
     parser.add_argument("-f", "--figure-out", type=str, default="plot.png", help="Output plot filename. Default: plot.png.")
+    parser.add_argument("-z", "--histogram", type=str, default="zero.png", help="Histogram of runs of constant data. Default: zero.png.")
     args = parser.parse_args()
 
     print("Grabbing data...")
@@ -99,8 +120,47 @@ if __name__ == "__main__":
         json_data = grab_data_url(args.url, args.json_out)
     else:
         json_data = grab_data_file(args.json_in)
+
     print("Processing data...")
     time, avg_temps = process_data(json_data, use_timestamp=args.timestamp, windows=args.windows)
+
     print("Creating plot...")
     fig = write_plot(time, avg_temps, use_timestamp=args.timestamp, marker_size=args.marker_size)
     fig.savefig(args.figure_out)
+
+    print("Generating distribution...")
+    runs = zero_runs(np.diff(avg_temps[0]))
+    run_length = runs[:,1] - runs[:,0]
+    rl_values, rl_counts = np.unique(run_length, return_counts=True)
+
+    print("{} unique zero runs".format(np.sum(rl_counts)))
+    print("{} total bits".format(np.sum(rl_values * rl_counts)))
+    rl_counts_norm = rl_counts / np.sum(rl_counts)
+
+    hfig, ax = plt.subplots(figsize=(10, 8))
+    ax.set(xlabel="Number of zeros in run",
+           ylabel="Proportion of total",
+           title="Zero runs bit count")
+    ax.bar(rl_values , rl_counts_norm)
+
+    hfig.savefig(args.histogram)
+
+    print("Entropy calculations...")
+    theoretical_entropy = np.sum(rl_counts_norm*-np.log2(rl_counts_norm))
+    print("Theoretical: {} bits/symbol".format(theoretical_entropy))
+
+    # The length of the run == the number of zero bits stored per run.
+    # This is only mildly more efficient than 8-bit RLE for all values, even
+    # _with_ the extra "0" prefix bit (avg. 9 bits/symbol)!
+    bits_per_codeword_no_rle = np.sum(rl_values * rl_counts_norm)
+    print("No RLE: {} bits/symbol".format(bits_per_codeword_no_rle))
+
+    # 00, 010, 0110
+    # 0111: run-length.
+    rle_bits_required = 3 + 8
+               # 1  2  3  4  5  6  7
+    rl_start =  [2, 3, 3]
+    rl_rest = [rle_bits_required] * len(rl_values[(rl_values > 3)])
+
+    bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
+    print("RLE: {} bits/symbol".format(bits_per_codeword_rle))

@@ -12,8 +12,9 @@ how room temperature changes over the course of a week.
 
 As designing a protocol over tweets isn't as ideal as designing one using a [diner placemat](http://doc.cat-v.org/bell_labs/utf-8_history),
 I will tweak the protocol as necessary to further optimize compression of real-world
-data and use cases. Changes to protocol will _not_ be backward compatible as
-per [semver](https://semver.org). The current protocol version (`v0.1`) is
+data and use cases. Changes to protocol will _not_ be backward compatible;
+an incompatible protocol receives a [semver](https://semver.org) version bump,
+even if the API remains the same. The current protocol version (`v0.2`) is
 documented below.
 
 This implementation is a joint effort between [myrrlyn](https://twitter.com/myrrlyn)
@@ -48,18 +49,37 @@ In the below diagrams, the code words are displayed most significant bit first.
 
 |Code Word       |Type    |Interpretation                                                        |
 |----------------|--------|----------------------------------------------------------------------|
-|0               |Diff    |Zero change from previous sample.                                     |
-|100             |Diff    |+1 change from previous sample.                                       |
-|101             |Diff    |-1 change from previous sample.                                       |
-|100 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
-|111 sxxxxxxxxxxx|Diff    |12-bit signed delta (except for values described below).              |
-|111 100000000000|Event   |No value/no measurement taken this sample.<sup>1</sup>                |
-|111 000000000000|Event   |Equivalent to 0. Reserved. Probably "clock went backwards".           |
-|111 000000000001|Event   |Equivalent to 100. Reserved. Probably "long term jitter error".       |
-|111 111111111111|Event   |Equivalent to 101. Reserved.  Probably "user event".                  |
+|00              |Diff    |Zero change from previous sample.                                     |
+|010             |Diff    |Zero change from previous two samples.                                |
+|100             |Diff    |Zero change from previous three samples.                              |
+|101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. Up to 256.        |
+|101 00000000    |N/A     |Reserved. Equivalent to "Zero change from previous sample".           |
+|101 00000001    |N/A     |Reserved. Equivalent to "Zero change from previous two samples".      |
+|101 00000010    |N/A     |Reserved. Equivalent to "Zero change from previous three samples".    |
+|0110            |Diff    |+1 change from previous sample.                                       |
+|0111            |Diff    |-1 change from previous sample.                                       |
+|110 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
+|111 10          |Event   |No value/no measurement taken this sample.                            |
+|111 00          |Event   |Reserved. Probably "clock went backwards".                            |
+|111 01          |Event   |Reserved. Probably "long term jitter error".                          |
+|111 11          |Event   |Reserved.  Probably "user event".                                     |
 
-1. A diff of the max negative value specifically should be rare enough that
-   it's worth replacing its compressed form with user-event.
+### Design Remarks
+1. The Run-Length Encoded zero encoding was based on the taking sample data
+   from my room over 24 hours, looking at the distribution of all zero runs.
+   Zero runs are approximately [expontentially distributed](https://en.wikipedia.org/wiki/Exponential_distribution),
+   ranging from 1 to about 256 zeroes.
+
+   From testing, maximum compression savings comes from giving short runs of
+   zeroes (up to 3) smaller encodings, while using the RLE code word for runs
+   of 4 to 256; the RLE encoding of up to 3 runs is reserved. 
+
+2. The length of the uncompresed data is not encoded in the compressed data,
+   and is provided out of band (file size, number of bytes read from a socket,
+   etc). Reading an incompletely-filled byte of data is considered an
+   acceptable "end of data" marker- it will either be an invalid code word
+   or one or multiple `00` code words, meaning "no change from previous
+   sample".
 
 ### Sample Rate
 The sample rate is not specified in the compression- it should be sent
