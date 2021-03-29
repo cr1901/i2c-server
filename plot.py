@@ -160,9 +160,9 @@ if __name__ == "__main__":
 
     # 00, 010, 0110
     # 0111: run-length.
-    rle_bits_required = 3 + 8
+    rle_bits_required = 4 + 8
                # 1  2  3  4  5  6  7  8  9  10 11 12 13  14  15  16
-    rl_start =  [4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 10, 10]
+    rl_start =  [3, 4, 4, 5, 5, 6, 6, 7, 8, 8, 8, 8, 9, 9, 9, 9]
     rl_rest = [rle_bits_required] * len(rl_values[(rl_values > len(rl_start))])
 
     bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     print("Rough compression estimate...")
     print("Assumes: RLE, one single leading absolute measurement")
-    initial_abs_bits = 15
+    initial_abs_bits = 16
     bits_per_measurement = 12
     nonzero_bits = 2
 

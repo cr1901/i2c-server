@@ -48,32 +48,32 @@ together without any padding bits._
 In the below diagrams, the code words are displayed most significant bit first.
 Spaces in the Code Word rows delimit prefixes.
 
-|Code Word       |Type    |Interpretation                                                        |
-|----------------|--------|----------------------------------------------------------------------|
-|00              |Diff    |+1 change from previous sample.                                       |
-|01              |Diff    |-1 change from previous sample.                                       |
-|100 0           |Diff    |Zero change from previous sample.                                     |
-|100 10          |Diff    |Zero change from previous three samples.                              |
-|100 110         |Diff    |Zero change from previous five samples.                               |
-|100 1110        |Diff    |Zero change from previous seven samples.                              |
-|100 11110       |Diff    |Zero change from previous nine samples.                               |
-|100 11111       |Diff    |Zero change from previous 10 samples.                                 |
-|101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 17-256.      |
-|101 00000010    |Event   |No value/no measurement taken this sample.                            |
-|101 00000000    |Event   |Reserved. Probably "clock went backwards".                            |
-|101 00000001    |Event   |Reserved. Probably "long term jitter error".                          |
-|101 00000011    |Event   |Reserved. Probably "user event".                                      |
-|110 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
-|111 0           |Diff    |Zero change from previous two samples.                                |
-|111 10          |Diff    |Zero change from previous four samples.                               |
-|111 110         |Diff    |Zero change from previous six samples.                                |
-|111 1110        |Diff    |Zero change from previous eight samples.                              |
-|111 111100      |Diff    |Zero change from previous 11 samples.                                 |
-|111 111101      |Diff    |Zero change from previous 12 samples.                                 |
-|111 1111100     |Diff    |Zero change from previous 13 samples.                                 |
-|111 1111101     |Diff    |Zero change from previous 14 samples.                                 |
-|111 1111110     |Diff    |Zero change from previous 15 samples.                                 |
-|111 1111111     |Diff    |Zero change from previous 16 samples.                                 |
+|Code Word        |Type    |Interpretation                                                       |
+|-----------------|--------|---------------------------------------------------------------------|
+|00               |Diff    |+1 change from previous sample.                                      |
+|01               |Diff    |-1 change from previous sample.                                      |
+|10 0             |Diff    |Zero change from previous sample.                                    |
+|10 10            |Diff    |Zero change from previous three samples.                             |
+|10 110           |Diff    |Zero change from previous five samples.                              |
+|10 1110          |Diff    |Zero change from previous seven samples.                             |
+|10 111100        |Diff    |Zero change from previous nine samples.                              |
+|10 111101        |Diff    |Zero change from previous 10 samples.                                |
+|10 111110        |Diff    |Zero change from previous 11 samples.                                |
+|10 111111        |Diff    |Zero change from previous 12 samples.                                |
+|110 0            |Diff    |Zero change from previous two samples.                               |
+|110 10           |Diff    |Zero change from previous four samples.                              |
+|110 110          |Diff    |Zero change from previous six samples.                               |
+|110 1110         |Diff    |Zero change from previous eight samples.                             |
+|110 111100       |Diff    |Zero change from previous 13 samples.                                |
+|110 111101       |Diff    |Zero change from previous 14 samples.                                |
+|110 111110       |Diff    |Zero change from previous 15 samples.                                |
+|110 111111       |Diff    |Zero change from previous 16 samples.                                |
+|1110 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 17-256.     |
+|1110 00000010    |Event   |No value/no measurement taken this sample.                           |
+|1110 00000000    |Event   |Reserved. Probably "clock went backwards".                           |
+|1110 00000001    |Event   |Reserved. Probably "long term jitter error".                         |
+|1110 00000011    |Event   |Reserved. Probably "user event".                                     |
+|1111 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                       |
 
 ### Design Remarks
 1. The Run-Length Encoded zero encoding was based on the taking sample data
