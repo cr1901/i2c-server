@@ -129,12 +129,14 @@ if __name__ == "__main__":
     fig.savefig(args.figure_out)
 
     print("Generating distribution...")
-    runs = zero_runs(np.diff(avg_temps[0]))
+    diffs = np.diff(avg_temps[0])
+    runs = zero_runs(diffs)
     run_length = runs[:,1] - runs[:,0]
     rl_values, rl_counts = np.unique(run_length, return_counts=True)
 
     print("{} unique zero runs".format(np.sum(rl_counts)))
-    print("{} total bits".format(np.sum(rl_values * rl_counts)))
+    print("{} total zero bits".format(np.sum(rl_values * rl_counts)))
+    print("{} total non-zero measurements".format(len(diffs[diffs != 0.0])))
     rl_counts_norm = rl_counts / np.sum(rl_counts)
 
     hfig, ax = plt.subplots(figsize=(10, 8))
@@ -158,9 +160,9 @@ if __name__ == "__main__":
     # 00, 010, 0110
     # 0111: run-length.
     rle_bits_required = 3 + 8
-               # 1  2  3  4  5  6  7
-    rl_start =  [2, 3, 3]
-    rl_rest = [rle_bits_required] * len(rl_values[(rl_values > 3)])
+               # 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+    rl_start =  [2, 3, 5, 5, 5, 5, 6, 6, 6, 6]
+    rl_rest = [rle_bits_required] * len(rl_values[(rl_values > len(rl_start))])
 
     bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
     print("RLE: {} bits/symbol".format(bits_per_codeword_rle))

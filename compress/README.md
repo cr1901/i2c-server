@@ -51,18 +51,25 @@ In the below diagrams, the code words are displayed most significant bit first.
 |----------------|--------|----------------------------------------------------------------------|
 |00              |Diff    |Zero change from previous sample.                                     |
 |010             |Diff    |Zero change from previous two samples.                                |
-|100             |Diff    |Zero change from previous three samples.                              |
-|101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. Up to 256.        |
+|011 0           |Diff    |+1 change from previous sample.                                       |
+|011 1           |Diff    |-1 change from previous sample.                                       |
+|100 00          |Diff    |Zero change from previous three samples.                              |
+|100 01          |Diff    |Zero change from previous four samples.                               |
+|100 110         |Event   |No value/no measurement taken this sample.                            |
+|100 100         |Event   |Reserved. Probably "clock went backwards".                            |
+|100 101         |Event   |Reserved. Probably "long term jitter error".                          |
+|100 111         |Event   |Reserved.  Probably "user event".                                     |
+|101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 11-256.      |
 |101 00000000    |N/A     |Reserved. Equivalent to "Zero change from previous sample".           |
 |101 00000001    |N/A     |Reserved. Equivalent to "Zero change from previous two samples".      |
 |101 00000010    |N/A     |Reserved. Equivalent to "Zero change from previous three samples".    |
-|0110            |Diff    |+1 change from previous sample.                                       |
-|0111            |Diff    |-1 change from previous sample.                                       |
 |110 sxxxxxxxxxxx|Absolute|12-bit signed absolute sample.                                        |
-|111 10          |Event   |No value/no measurement taken this sample.                            |
-|111 00          |Event   |Reserved. Probably "clock went backwards".                            |
-|111 01          |Event   |Reserved. Probably "long term jitter error".                          |
-|111 11          |Event   |Reserved.  Probably "user event".                                     |
+|111 00          |Diff    |Zero change from previous five samples.                               |
+|111 01          |Diff    |Zero change from previous six samples.                                |
+|111 100         |Diff    |Zero change from previous seven samples.                              |
+|111 101         |Diff    |Zero change from previous eight samples.                              |
+|111 110         |Diff    |Zero change from previous nine samples.                               |
+|111 111         |Diff    |Zero change from previous ten samples.                                |
 
 ### Design Remarks
 1. The Run-Length Encoded zero encoding was based on the taking sample data
@@ -72,7 +79,7 @@ In the below diagrams, the code words are displayed most significant bit first.
 
    From testing, maximum compression savings comes from giving short runs of
    zeroes (up to 3) smaller encodings, while using the RLE code word for runs
-   of 4 to 256; the RLE encoding of up to 3 runs is reserved. 
+   of 4 to 256; the RLE encoding of up to 3 runs is reserved.
 
 2. The length of the uncompresed data is not encoded in the compressed data,
    and is provided out of band (file size, number of bytes read from a socket,
