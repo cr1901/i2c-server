@@ -54,9 +54,9 @@ Spaces in the Code Word rows delimit prefixes.
 |01              |Diff    |-1 change from previous sample.                                       |
 |100 00          |Diff    |Zero change from previous sample.                                     |
 |100 01          |Diff    |Zero change from previous two samples.                                |
-|100 110         |Diff    |Zero change from previous five samples.                               |
-|100 100         |Diff    |Zero change from previous six samples.                                |
-|100 101         |Diff    |Zero change from previous seven samples.                              |
+|100 100         |Diff    |Zero change from previous five samples.                               |
+|100 101         |Diff    |Zero change from previous six samples.                                |
+|100 110         |Diff    |Zero change from previous seven samples.                              |
 |100 111         |Diff    |Zero change from previous eight samples.                              |
 |101 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 17-256.      |
 |101 00000010    |Event   |No value/no measurement taken this sample.                            |
@@ -72,8 +72,8 @@ Spaces in the Code Word rows delimit prefixes.
 |111 1101        |Diff    |Zero change from previous 12 samples.                                 |
 |111 11100       |Diff    |Zero change from previous 13 samples.                                 |
 |111 11101       |Diff    |Zero change from previous 14 samples.                                 |
-|111 11111       |Diff    |Zero change from previous 15 samples.                                 |
-|111 11110       |Diff    |Zero change from previous 16 samples.                                 |
+|111 11110       |Diff    |Zero change from previous 15 samples.                                 |
+|111 11111       |Diff    |Zero change from previous 16 samples.                                 |
 
 ### Design Remarks
 1. The Run-Length Encoded zero encoding was based on the taking sample data
