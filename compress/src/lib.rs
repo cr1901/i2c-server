@@ -1,6 +1,8 @@
 //! Compression library for low-speed I2C sensors.
 #![no_std]
 
+use core::cell::Cell;
+
 use bitvec::prelude::*;
 // mod stream;
 
@@ -42,14 +44,14 @@ impl From<u8> for Opcode {
 
 pub fn encode_stream<'a, 'b>(
     mut values: &'a [i16],
-    buf: &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
+    buf: &'b mut BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
 ) -> (
     //  Measurements not serialized
     &'a [i16],
     //  Datastream for transport
-    &'b BitSlice<Msb0, <u8 as BitStore>::Alias>,
+    &'b BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
     //  Unused datastream
-    &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
+    &'b mut BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
 ) {
     let mut cursor = 0;
     let mut last = None;
@@ -205,41 +207,42 @@ fn compress_entry(entry: EntryType) -> (usize, Packet) {
 mod tests {
     use crate as compress;
     use bitvec::prelude::*;
+    use core::cell::Cell;
 
     #[test]
     fn test_zero() {
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1023)));
-        assert_eq!((s, b.unwrap()), (1, [0, 0]));
+        assert_eq!((s, b.into_inner()), (1, [0, 0]));
     }
 
     #[test]
     fn test_delta1() {
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1022)));
-        assert_eq!((s, b.unwrap()), (3, [0b10000000, 0]));
+        assert_eq!((s, b.into_inner()), (3, [0b10000000, 0]));
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1022, 1023)));
-        assert_eq!((s, b.unwrap()), (3, [0b10100000, 0]));
+        assert_eq!((s, b.into_inner()), (3, [0b10100000, 0]));
     }
 
     #[test]
     fn test_delta12() {
         // 3 Delta
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1020)));
-        assert_eq!((s, b.unwrap()), (15, [0b11100000, 0b00000110]));
+        assert_eq!((s, b.into_inner()), (15, [0b11100000, 0b00000110]));
         // -3 Delta
         let (s, b) = compress::compress_entry(compress::EntryType::Diff((1020, 1023)));
-        assert_eq!((s, b.unwrap()), (15, [0b11111111, 0b11111010]));
+        assert_eq!((s, b.into_inner()), (15, [0b11111111, 0b11111010]));
     }
 
     #[test]
     fn test_item() {
         let (s, b) = compress::compress_entry(compress::EntryType::Absolute(1));
-        assert_eq!((s, b.unwrap()), (15, [0b11000000, 0b00000010]));
+        assert_eq!((s, b.into_inner()), (15, [0b11000000, 0b00000010]));
     }
 
     #[test]
     fn encode_values() {
         let values = [1500, 0, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500, 500];
-        let mut buf = bitarr![Msb0, u8; 0; 256];
+        let mut buf = bitarr![Msb0, Cell<u8>; 0; 256];
         let (_, buf_slice) = buf.as_mut_bitslice().split_at_mut(0);
         let (unencoded, stream, empty) = compress::encode_stream(&values, buf_slice);
         assert!(unencoded.is_empty());
