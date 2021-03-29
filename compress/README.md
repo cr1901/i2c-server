@@ -54,20 +54,20 @@ Spaces in the Code Word rows delimit prefixes.
 |01               |Diff    |-1 change from previous sample.                                      |
 |10 0             |Diff    |Zero change from previous sample.                                    |
 |10 10            |Diff    |Zero change from previous three samples.                             |
-|10 110           |Diff    |Zero change from previous five samples.                              |
-|10 1110          |Diff    |Zero change from previous seven samples.                             |
-|10 111100        |Diff    |Zero change from previous nine samples.                              |
-|10 111101        |Diff    |Zero change from previous 10 samples.                                |
-|10 111110        |Diff    |Zero change from previous 11 samples.                                |
-|10 111111        |Diff    |Zero change from previous 12 samples.                                |
+|10 1100          |Diff    |Zero change from previous five samples.                              |
+|10 1101          |Diff    |Zero change from previous seven samples.                             |
+|10 11100         |Diff    |Zero change from previous nine samples.                              |
+|10 11101         |Diff    |Zero change from previous 10 samples.                                |
+|10 11110         |Diff    |Zero change from previous 11 samples.                                |
+|10 11111         |Diff    |Zero change from previous 12 samples.                                |
 |110 0            |Diff    |Zero change from previous two samples.                               |
-|110 10           |Diff    |Zero change from previous four samples.                              |
-|110 110          |Diff    |Zero change from previous six samples.                               |
-|110 1110         |Diff    |Zero change from previous eight samples.                             |
-|110 111100       |Diff    |Zero change from previous 13 samples.                                |
-|110 111101       |Diff    |Zero change from previous 14 samples.                                |
-|110 111110       |Diff    |Zero change from previous 15 samples.                                |
-|110 111111       |Diff    |Zero change from previous 16 samples.                                |
+|110 100          |Diff    |Zero change from previous four samples.                              |
+|110 101          |Diff    |Zero change from previous six samples.                               |
+|110 110          |Diff    |Zero change from previous eight samples.                             |
+|110 11100        |Diff    |Zero change from previous 13 samples.                                |
+|110 11101        |Diff    |Zero change from previous 14 samples.                                |
+|110 11110        |Diff    |Zero change from previous 15 samples.                                |
+|110 11111        |Diff    |Zero change from previous 16 samples.                                |
 |1110 rrrrrrrr    |Diff    |Zero change in "r + 1" samples, run-length encoded. From 17-256.     |
 |1110 00000010    |Event   |No value/no measurement taken this sample.                           |
 |1110 00000000    |Event   |Reserved. Probably "clock went backwards".                           |
