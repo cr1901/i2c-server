@@ -1,8 +1,6 @@
 //! Compression library for low-speed I2C sensors.
 #![no_std]
 
-use core::cell::Cell;
-
 use bitvec::prelude::*;
 // mod stream;
 
@@ -44,14 +42,14 @@ impl From<u8> for Opcode {
 
 pub fn encode_stream<'a, 'b>(
     mut values: &'a [i16],
-    buf: &'b mut BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
+    buf: &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
 ) -> (
     //  Measurements not serialized
     &'a [i16],
     //  Datastream for transport
-    &'b BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
+    &'b BitSlice<Msb0, <u8 as BitStore>::Alias>,
     //  Unused datastream
-    &'b mut BitSlice<Msb0, <Cell<u8> as BitStore>::Alias>,
+    &'b mut BitSlice<Msb0, <u8 as BitStore>::Alias>,
 ) {
     let mut cursor = 0;
     let mut last = None;
@@ -74,7 +72,7 @@ pub fn encode_stream<'a, 'b>(
         values = rest;
     }
 
-    let (written, rest) = buf.split_at_aliased_mut(cursor);
+    let (written, rest) = buf.split_at_mut(cursor);
     (values, &*written, rest)
 }
 
@@ -242,7 +240,7 @@ mod tests {
     #[test]
     fn encode_values() {
         let values = [1500, 0, 0, 1, 0, -1, 1000, 1001, 1000, 999, 500, 500];
-        let mut buf = bitarr![Msb0, Cell<u8>; 0; 256];
+        let mut buf = bitarr![Msb0, u8; 0; 256];
         let (_, buf_slice) = buf.as_mut_bitslice().split_at_mut(0);
         let (unencoded, stream, empty) = compress::encode_stream(&values, buf_slice);
         assert!(unencoded.is_empty());
