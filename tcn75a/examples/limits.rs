@@ -75,7 +75,7 @@ fn main() -> Result<()> {
             .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
-        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;
+        stdout.write(format!("Current temp is {} C.\r", I8F8::from(temp)).as_bytes())?;
         stdout.execute(cursor::RestorePosition)?;
         stdout.flush()?;
 
@@ -94,7 +94,7 @@ fn main() -> Result<()> {
             .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
-        stdout.write(format!("Current temp is {} C.\r", temp).as_bytes())?;
+        stdout.write(format!("Current temp is {} C.\r", I8F8::from(temp)).as_bytes())?;
         stdout.execute(cursor::RestorePosition)?;
         stdout.flush()?;
 

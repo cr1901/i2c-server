@@ -62,6 +62,20 @@ where
     cfg: Option<ConfigReg>,
 }
 
+impl<T> fmt::Debug for Tcn75a<T>
+where
+    T: Read + Write,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Tcn75a")
+            .field("ctx", &"HAL context")
+            .field("address", &self.address)
+            .field("reg", &self.reg)
+            .field("cfg", &self.cfg)
+            .finish()
+    }
+}
+
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 pub enum Tcn75aError<R, W>
 where
@@ -156,6 +170,41 @@ where
     }
 }
 
+impl<R, W> Eq for Tcn75aError<R, W>
+where
+    R: Read,
+    W: Write,
+    Tcn75aError<R, W>: PartialEq<Self>,
+{
+}
+
+impl<R, W> Clone for Tcn75aError<R, W>
+where
+    R: Read,
+    W: Write,
+    <R as Read>::Error: Clone,
+    <W as Write>::Error: Clone,
+{
+    fn clone(&self) -> Self {
+        match self {
+            Tcn75aError::<R, W>::OutOfRange => Tcn75aError::<R, W>::OutOfRange,
+            Tcn75aError::<R, W>::LimitError(l) => Tcn75aError::<R, W>::LimitError(*l),
+            Tcn75aError::<R, W>::RegPtrError(w) => Tcn75aError::<R, W>::RegPtrError(w.clone()),
+            Tcn75aError::<R, W>::ReadError(r) => Tcn75aError::<R, W>::ReadError(r.clone()),
+            Tcn75aError::<R, W>::WriteError(w) => Tcn75aError::<R, W>::WriteError(w.clone()),
+        }
+    }
+}
+
+impl<R, W> Copy for Tcn75aError<R, W>
+where
+    R: Read,
+    W: Write,
+    <R as Read>::Error: Copy,
+    <W as Write>::Error: Copy,
+{
+}
+
 /** Convenience type for representing [`Tcn75aError`]s where `T` implements both [`Read`]
 and [`Write`].
 
@@ -229,6 +278,7 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
+    # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Tcn75aError};
     # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
@@ -239,7 +289,7 @@ where
     tcn.set_reg_ptr(0)?;
     for _ in 0..10 {
         // Then read temp values as fast as possible.
-        println!("Temperature is: {}", tcn.temperature()?);
+        println!("Temperature is: {}", I8F8::from(tcn.temperature()?));
     }
     # Ok(())
     # }

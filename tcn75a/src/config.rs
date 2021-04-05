@@ -1,4 +1,5 @@
 use core::convert::{From, TryFrom};
+use core::fmt;
 use modular_bitfield::prelude::*;
 
 /** Representation of the Sensor Configuration Register.
@@ -79,6 +80,12 @@ fn main() -> Result<(), ConfigRegValueError> {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConfigRegValueError(());
 
+impl fmt::Display for ConfigRegValueError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "value of of range for config register field")
+    }
+}
+
 /** One-Shot bit in the Sensor Configuration Register.
 
 Consult the TCN75A [datasheet] for information on the meanings of each variant.
@@ -87,7 +94,7 @@ in subsequent silicon revisions may constitute a breaking API change).
 
 [datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum OneShot {
     Disabled = 0,
     Enabled,
@@ -190,7 +197,7 @@ assert!(try_fq_fail.is_err());
 
 [datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum FaultQueue {
     One = 0,
     Two,
@@ -231,7 +238,7 @@ in subsequent silicon revisions may constitute a breaking API change).
 
 [datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AlertPolarity {
     ActiveLow = 0,
     ActiveHigh,
@@ -245,7 +252,7 @@ in subsequent silicon revisions may constitute a breaking API change).
 
 [datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CompInt {
     Comparator = 0,
     Interrupt,
@@ -259,7 +266,7 @@ in subsequent silicon revisions may constitute a breaking API change).
 
 [datasheet]: http://ww1.microchip.com/downloads/en/DeviceDoc/21935D.pdf
 */
-#[derive(BitfieldSpecifier, Debug, PartialEq)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Shutdown {
     Disable = 0,
     Enable,

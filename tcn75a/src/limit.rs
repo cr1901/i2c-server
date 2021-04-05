@@ -1,6 +1,7 @@
 use core::convert::{From, TryFrom};
 use core::fmt;
 use fixed::types::I8F8;
+use fixed_macro::fixed;
 
 /** A struct representing the Hysteresis and Limit-Set registers of the TCN75A.
 
@@ -68,8 +69,14 @@ assert_eq!(orig, restored);
 [`From`]: https://doc.rust-lang.org/nightly/core/convert/trait.From.html
 */
 // TODO: Limits::new().
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Limits(I8F8, I8F8);
+
+impl Default for Limits {
+    fn default() -> Self {
+        Limits(fixed!(75.0: I8F8), fixed!(80.0: I8F8))
+    }
+}
 
 /** Reasons a conversion from `(I8F8, I8F8)` to [`Limits`] may fail.
 
@@ -84,7 +91,7 @@ a conversion from `(I8F8, I8F8)` can fail.
 [`Error`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#associatedtype.Error
 [`TryFrom`]: https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html
 */
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum LimitError {
     /** _Both_ the Hysteresis and Limit-Set values provided do not fit in a 9-bit signed
     integer. */
@@ -147,7 +154,6 @@ impl From<Limits> for (I8F8, I8F8) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fixed_macro::fixed;
 
     #[test]
     fn test_limit_ok() {
