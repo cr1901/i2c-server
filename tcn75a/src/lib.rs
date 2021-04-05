@@ -276,13 +276,12 @@ where
 
         self.ctx
             .write(self.address, &ptr.to_le_bytes())
-            .and_then(|_| {
+            .map(|_| {
                 self.reg = Some(ptr);
-                Ok(())
             })
-            .or_else(|e| {
+            .map_err(|e| {
                 self.reg = None;
-                Err(Tcn75aError::RegPtrError(e))
+                Tcn75aError::RegPtrError(e)
             })
     }
 
@@ -394,7 +393,7 @@ where
         self.set_reg_ptr(0x00)?;
         self.ctx
             .read(self.address, &mut temp)
-            .map_err(|e| Tcn75aError::ReadError(e))?;
+            .map_err(Tcn75aError::ReadError)?;
 
         let raw_temp = i16::from_be_bytes(temp);
 
@@ -478,15 +477,15 @@ where
         let cfg = self
             .ctx
             .read(self.address, &mut buf)
-            .and_then(|_| {
+            .map(|_| {
                 let cfg = ConfigReg::from_bytes(buf);
 
                 self.cfg = Some(cfg);
-                Ok(cfg)
+                cfg
             })
-            .or_else(|e| {
+            .map_err(|e| {
                 self.cfg = None;
-                Err(Tcn75aError::ReadError(e))
+                Tcn75aError::ReadError(e)
             })?;
 
         Ok(cfg)
@@ -553,14 +552,13 @@ where
 
         self.ctx
             .write(self.address, &buf)
-            .and_then(|_| {
+            .map(|_| {
                 self.cfg = Some(cfg);
-                Ok(())
             })
-            .or_else(|e| {
+            .map_err(|e| {
                 self.reg = None;
                 self.cfg = None;
-                Err(Tcn75aError::WriteError(e))
+                Tcn75aError::WriteError(e)
             })?;
         self.reg = Some(0x01);
 
@@ -635,17 +633,17 @@ where
         lim.0 = self
             .ctx
             .read(self.address, &mut buf)
-            .and_then(|_| Ok(I8F8::from_be_bytes(buf)))
-            .map_err(|e| Tcn75aError::ReadError(e))?;
+            .map(|_| I8F8::from_be_bytes(buf))
+            .map_err(Tcn75aError::ReadError)?;
 
         self.set_reg_ptr(0x03)?;
         lim.1 = self
             .ctx
             .read(self.address, &mut buf)
-            .and_then(|_| Ok(I8F8::from_be_bytes(buf)))
-            .map_err(|e| Tcn75aError::ReadError(e))?;
+            .map(|_| I8F8::from_be_bytes(buf))
+            .map_err(Tcn75aError::ReadError)?;
 
-        TryFrom::try_from(lim).map_err(|e| Tcn75aError::LimitError(e))
+        TryFrom::try_from(lim).map_err(Tcn75aError::LimitError)
     }
 
     /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts
@@ -719,21 +717,21 @@ where
 
         // Reg ptr
         buf[0] = 0x02;
-        &buf[1..3].copy_from_slice(&lower.to_be_bytes());
+        buf[1..3].copy_from_slice(&lower.to_be_bytes());
 
-        self.ctx.write(self.address, &buf).or_else(|e| {
+        self.ctx.write(self.address, &buf).map_err(|e| {
             // TODO: PartialUpdate variant?
             self.reg = None;
-            Err(Tcn75aError::WriteError(e))
+            Tcn75aError::WriteError(e)
         })?;
         self.reg = Some(0x02); // Needed?
 
         // Reg ptr
         buf[0] = 0x03;
-        &buf[1..3].copy_from_slice(&upper.to_be_bytes());
-        self.ctx.write(self.address, &buf).or_else(|e| {
+        buf[1..3].copy_from_slice(&upper.to_be_bytes());
+        self.ctx.write(self.address, &buf).map_err(|e| {
             self.reg = None;
-            Err(Tcn75aError::WriteError(e))
+            Tcn75aError::WriteError(e)
         })?;
         self.reg = Some(0x03);
 
