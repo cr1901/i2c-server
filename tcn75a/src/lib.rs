@@ -86,12 +86,17 @@ where
     read as zero. This _may_ indicate that you are not reading a TCN75A.  */
     OutOfRange,
     /** The temperature limit registers were read successfully, but the values read were invalid
-    (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid.
+    (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid,
+    and a tuple of `(I8F8, I8F8)`, representing the values which were read; the Hysteresis (Low)
+    value is the left element, and the Limit-Set (High) is the right element.
 
     [invariants]: ./struct.Limits.html#invariants
     [`LimitError`]: ./enum.LimitError.html
     */
-    LimitError(LimitError),
+    LimitError {
+        reason: LimitError,
+        values: (I8F8, I8F8),
+    },
     /** The register pointer could not be set to _read_ the desired register. Contains the error
     reason from [`Write::Error`]. For register writes, [`WriteError`] is returned if the register
     pointer failed to update.
@@ -124,7 +129,11 @@ where
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Tcn75aError::<R, W>::OutOfRange => write!(f, "temperature reading out of range"),
-            Tcn75aError::<R, W>::LimitError(_e) => write!(f, "limit registers out of range"),
+            Tcn75aError::<R, W>::LimitError { reason: _r, values } => write!(
+                f,
+                "limit registers out of range (lo: {}, hi: {})",
+                values.0, values.1
+            ),
             Tcn75aError::<R, W>::RegPtrError(_w) => write!(f, "error writing register pointer"),
             Tcn75aError::<R, W>::ReadError(_r) => write!(f, "generic read error"),
             Tcn75aError::<R, W>::WriteError(_w) => write!(f, "generic write error"),
@@ -142,7 +151,11 @@ where
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Tcn75aError::<R, W>::OutOfRange => write!(fmt, "OutOfRange"),
-            Tcn75aError::<R, W>::LimitError(e) => fmt.debug_tuple("LimitError").field(e).finish(),
+            Tcn75aError::<R, W>::LimitError { reason, values } => fmt
+                .debug_struct("LimitError")
+                .field("reason", reason)
+                .field("values", values)
+                .finish(),
             Tcn75aError::<R, W>::RegPtrError(w) => fmt.debug_tuple("RegPtrError").field(w).finish(),
             Tcn75aError::<R, W>::ReadError(r) => fmt.debug_tuple("ReadError").field(r).finish(),
             Tcn75aError::<R, W>::WriteError(w) => fmt.debug_tuple("WriteError").field(w).finish(),
@@ -161,7 +174,16 @@ where
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Tcn75aError::<R, W>::OutOfRange, Tcn75aError::<R, W>::OutOfRange) => true,
-            (Tcn75aError::<R, W>::LimitError(s), Tcn75aError::<R, W>::LimitError(o)) => s == o,
+            (
+                Tcn75aError::<R, W>::LimitError {
+                    reason: sr,
+                    values: sv,
+                },
+                Tcn75aError::<R, W>::LimitError {
+                    reason: or,
+                    values: ov,
+                },
+            ) => sr == or && sv == ov,
             (Tcn75aError::<R, W>::RegPtrError(s), Tcn75aError::<R, W>::RegPtrError(o)) => s == o,
             (Tcn75aError::<R, W>::ReadError(s), Tcn75aError::<R, W>::ReadError(o)) => s == o,
             (Tcn75aError::<R, W>::WriteError(s), Tcn75aError::<R, W>::WriteError(o)) => s == o,
@@ -188,7 +210,10 @@ where
     fn clone(&self) -> Self {
         match self {
             Tcn75aError::<R, W>::OutOfRange => Tcn75aError::<R, W>::OutOfRange,
-            Tcn75aError::<R, W>::LimitError(l) => Tcn75aError::<R, W>::LimitError(*l),
+            Tcn75aError::<R, W>::LimitError { reason, values } => Tcn75aError::<R, W>::LimitError {
+                reason: *reason,
+                values: *values,
+            },
             Tcn75aError::<R, W>::RegPtrError(w) => Tcn75aError::<R, W>::RegPtrError(w.clone()),
             Tcn75aError::<R, W>::ReadError(r) => Tcn75aError::<R, W>::ReadError(r.clone()),
             Tcn75aError::<R, W>::WriteError(w) => Tcn75aError::<R, W>::WriteError(w.clone()),
@@ -647,8 +672,20 @@ where
             // ... Safe to continue
         },
         Err(e) => {
-            # e;
-            // ... Uh-oh! Use set_limits() to correct the value.
+            match e {
+                Tcn75aError::LimitError {
+                    reason,
+                    values,
+                } => {
+                    # reason;
+                    # values;
+                    // ... Uh-oh! Use set_limits() to correct the value.
+                },
+                _ => {
+                    # e;
+                    // ... Handle other errors as appropriate.
+                }
+            }
         }
     }
     # Ok(())
@@ -667,13 +704,13 @@ where
     * [`Tcn75aError::ReadError`]: Returned if the I2C read to get _either_ of the above register
       contents failed. The register pointer cache is set to register is either 2 or 3.
     * [`Tcn75aError::LimitError`]: Both registers were read successfully, but violated invariants
-      assumed by this library. The [`LimitError`] contains the reason. The register pointer cache
-      is set to 3.
+      assumed by this library. The error reason and the values read are returned, as described
+      [above]. The register pointer cache is set to 3.
 
     [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
     [`Tcn75aError::ReadError`]: ./enum.Tcn75aError.html#variant.ReadError
     [`Tcn75aError::LimitError`]: ./enum.Tcn75aError.html#variant.LimitError
-    [`LimitError`]: ./enum.LimitError.html
+    [above]: ./enum.Tcn75aError.html#variant.LimitError
     */
     pub fn limits(&mut self) -> Result<Limits, Error<T>> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -693,7 +730,10 @@ where
             .map(|_| I8F8::from_be_bytes(buf))
             .map_err(Tcn75aError::ReadError)?;
 
-        TryFrom::try_from(lim).map_err(Tcn75aError::LimitError)
+        TryFrom::try_from(lim).map_err(|r| Tcn75aError::LimitError {
+            reason: r,
+            values: lim,
+        })
     }
 
     /** Sets _both_ the lower and upper temperature limits, outside of which the TCN75A asserts
@@ -834,7 +874,9 @@ mod tests {
     use std::io::ErrorKind;
     use std::vec;
 
-    use super::{AlertPolarity, ConfigReg, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError};
+    use super::{
+        AlertPolarity, ConfigReg, LimitError, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError,
+    };
     use embedded_hal_mock::{
         i2c::{Mock as I2cMock, Transaction as I2cTransaction},
         MockError,
@@ -1140,6 +1182,27 @@ mod tests {
         assert_eq!(
             tcn.limits().unwrap().try_into(),
             Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8)))
+        );
+    }
+
+    #[test]
+    fn read_limits_err() {
+        let mut tcn = mk_tcn75a(
+            &[
+                I2cTransaction::write(0x48, vec![2]),
+                I2cTransaction::read(0x48, vec![0x5a, 0xc0]),
+                I2cTransaction::write(0x48, vec![3]),
+                I2cTransaction::read(0x48, vec![0x5f, 0x00]),
+            ],
+            0x48,
+        );
+
+        assert_eq!(
+            tcn.limits(),
+            Err(Tcn75aError::LimitError {
+                reason: LimitError::LowOutOfRange,
+                values: (fixed!(90.75: I8F8), fixed!(95.0: I8F8))
+            })
         );
     }
 
