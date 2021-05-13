@@ -6,8 +6,26 @@ use bitvec::prelude::*;
 
 pub type Packet = BitArray<Msb0, [u8; 2]>;
 
+pub struct DiffRleState {
+    pub prev: i16,
+    pub curr: i16,
+    zero_run: u8
+}
+
+impl DiffRleState {
+    pub fn new(curr: i16, prev: i16) -> Self {
+        let zero_run = if prev != curr { 0 } else { 1 };
+
+        DiffRleState {
+            prev,
+            curr,
+            zero_run
+        }
+    }
+}
+
 pub enum EntryType {
-    Diff((i16, i16)),
+    Diff(DiffRleState),
     Absolute(i16),
     NoMeasurement,
     Reserved(i16),
@@ -62,7 +80,7 @@ pub fn encode_stream<'a, 'b>(
         }
         let entry = match last {
             None => EntryType::Absolute(*next),
-            Some(last) => EntryType::Diff((*next, last)),
+            Some(last) => EntryType::Diff(DiffRleState::new(*next, last)),
         };
         let (bits, pkt) = compress_entry(entry);
         buf[cursor..][..bits].clone_from_bitslice(&pkt[..bits]);
@@ -159,8 +177,8 @@ fn compress_entry(entry: EntryType) -> (usize, Packet) {
     let mut out = Packet::zeroed();
 
     match entry {
-        EntryType::Diff((curr, prev)) => {
-            let diff = curr - prev;
+        EntryType::Diff(d) => {
+            let diff = d.curr - d.prev;
 
             match diff {
                 0 => {
@@ -209,25 +227,25 @@ mod tests {
 
     #[test]
     fn test_zero() {
-        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1023)));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff(compress::DiffRleState::new(1023, 1023)));
         assert_eq!((s, b.into_inner()), (1, [0, 0]));
     }
 
     #[test]
     fn test_delta1() {
-        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1022)));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff(compress::DiffRleState::new(1023, 1022)));
         assert_eq!((s, b.into_inner()), (3, [0b10000000, 0]));
-        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1022, 1023)));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff(compress::DiffRleState::new(1022, 1023)));
         assert_eq!((s, b.into_inner()), (3, [0b10100000, 0]));
     }
 
     #[test]
     fn test_delta12() {
         // 3 Delta
-        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1023, 1020)));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff(compress::DiffRleState::new(1023, 1020)));
         assert_eq!((s, b.into_inner()), (15, [0b11100000, 0b00000110]));
         // -3 Delta
-        let (s, b) = compress::compress_entry(compress::EntryType::Diff((1020, 1023)));
+        let (s, b) = compress::compress_entry(compress::EntryType::Diff(compress::DiffRleState::new(1020, 1023)));
         assert_eq!((s, b.into_inner()), (15, [0b11111111, 0b11111010]));
     }
 
