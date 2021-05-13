@@ -124,9 +124,9 @@ if __name__ == "__main__":
     print("Processing data...")
     time, avg_temps = process_data(json_data, use_timestamp=args.timestamp, windows=args.windows)
 
-    print("Creating plot...")
-    fig = write_plot(time, avg_temps, use_timestamp=args.timestamp, marker_size=args.marker_size)
-    fig.savefig(args.figure_out)
+    # print("Creating plot...")
+    # fig = write_plot(time, avg_temps, use_timestamp=args.timestamp, marker_size=args.marker_size)
+    # fig.savefig(args.figure_out)
 
     print("Generating distribution...")
     diffs = np.diff(avg_temps[0])
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     print("Entropy calculations...")
     theoretical_entropy = np.sum(rl_counts_norm*-np.log2(rl_counts_norm))
-    print("  Theoretical: {} bits/symbol".format(theoretical_entropy))
+    print("  Theoretical (Zeros Only): {} bits/symbol".format(theoretical_entropy))
 
     # The length of the run == the number of zero bits stored per run.
     # This is only mildly more efficient than 8-bit RLE for all values, even
@@ -167,6 +167,13 @@ if __name__ == "__main__":
 
     bits_per_codeword_rle = np.sum(np.concatenate((rl_start, rl_rest)) * rl_counts_norm)
     print("  RLE: {} bits/symbol".format(bits_per_codeword_rle))
+
+    rl_counts_bits = (np.concatenate((rl_start, rl_rest)) * rl_counts)
+    nonzero_counts_bits = [2 * len(diffs[diffs != 0.0])]
+    abs_bits = [16]
+    total_symbols = (np.sum(rl_counts) + len(diffs[diffs != 0.0]) + 1)
+    bits_per_codeword_all = np.sum(np.concatenate((abs_bits, nonzero_counts_bits, rl_counts_bits)))/total_symbols
+    print("  All Symbols: {} bits/symbol".format(bits_per_codeword_all))
 
     print("Rough compression estimate...")
     print("Assumes: RLE, one single leading absolute measurement")
