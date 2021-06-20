@@ -27,7 +27,9 @@ cfg_if! {
         }
 
         fn from_base_16(val: &str) -> Result<u8, String> {
-            match u8::from_str_radix(val, 16) {
+            let no_prefix = val.trim_start_matches("0x");
+
+            match u8::from_str_radix(no_prefix, 16) {
                 Ok(v) => Ok(v),
                 Err(_) => {
                     Err("Unable to convert address from base 16".into())
@@ -75,7 +77,7 @@ fn main() -> Result<()> {
             .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
-        stdout.write(format!("Current temp is {} C.\r", I8F8::from(temp)).as_bytes())?;
+        stdout.write(format!("Current temp is {:^4} C.\r", I8F8::from(temp)).as_bytes())?;
         stdout.execute(cursor::RestorePosition)?;
         stdout.flush()?;
 
@@ -86,7 +88,7 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("\nRelease finger from sensor! Waiting for {} C!", temp_lo);
+    println!("\nRelease finger from sensor! Waiting to drop below {} C!", temp_lo);
 
     loop {
         let temp = tcn
@@ -94,13 +96,13 @@ fn main() -> Result<()> {
             .map_err(|_e| eyre!("failed to read a temperature"))?;
 
         stdout.execute(cursor::SavePosition)?;
-        stdout.write(format!("Current temp is {} C.\r", I8F8::from(temp)).as_bytes())?;
+        stdout.write(format!("Current temp is {:^4} C.\r", I8F8::from(temp)).as_bytes())?;
         stdout.execute(cursor::RestorePosition)?;
         stdout.flush()?;
 
         sleep(Duration::from_millis(29u64)); // ~1 milli for i2c read, 30 milli for new temp.
 
-        if I8F8::from(temp) <= temp_lo {
+        if I8F8::from(temp) < temp_lo {
             break;
         }
     }

@@ -59,7 +59,9 @@ cfg_if! {
         }
 
         fn from_base_16(val: &str) -> Result<u8, String> {
-            match u8::from_str_radix(val, 16) {
+            let no_prefix = val.trim_start_matches("0x");
+
+            match u8::from_str_radix(no_prefix, 16) {
                 Ok(v) => Ok(v),
                 Err(_) => {
                     Err("Unable to convert address from base 16".into())
@@ -134,7 +136,7 @@ fn main() -> Result<(), PlotError> {
         file.write_all(json_str.as_bytes())
             .map_err(|e| PlotError::OutputError(Box::new(e)))?;
     } else {
-        println!("{}", json_str);
+        println!("\n{}", json_str);
     }
 
     // impl Drop?
