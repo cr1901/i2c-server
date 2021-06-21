@@ -58,6 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 [`Resolution`]: ./enum.Resolution.html
 */
 #![no_std]
+#![doc(html_root_url = "https://docs.rs/tcn75a/0.1.0")]
 
 use core::convert::TryFrom;
 use core::fmt;
