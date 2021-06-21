@@ -77,10 +77,8 @@ where
 }
 
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
-pub enum Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Tcn75aError<RE, WE>
 {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero. This _may_ indicate that you are not reading a TCN75A.  */
@@ -104,130 +102,38 @@ where
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
-    RegPtrError(<W as Write>::Error),
+    RegPtrError(WE),
     /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
     propagated from the [`embedded_hal`] implementation.
 
     [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
-    ReadError(<R as Read>::Error),
+    ReadError(RE),
     /** Writing the desired register via [`embedded_hal`] failed. Contains a [`Write::Error`],
     propagated from the [`embedded_hal`] implementation.
 
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
-    WriteError(<W as Write>::Error),
+    WriteError(WE),
 }
 
-impl<R, W> fmt::Display for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
+impl<RE, WE> fmt::Display for Tcn75aError<RE, WE>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Tcn75aError::<R, W>::OutOfRange => write!(f, "temperature reading out of range"),
-            Tcn75aError::<R, W>::LimitError { reason: _r, values } => write!(
+            Self::OutOfRange => write!(f, "temperature reading out of range"),
+            Self::LimitError { reason: _r, values } => write!(
                 f,
                 "limit registers out of range (lo: {}, hi: {})",
                 values.0, values.1
             ),
-            Tcn75aError::<R, W>::RegPtrError(_w) => write!(f, "error writing register pointer"),
-            Tcn75aError::<R, W>::ReadError(_r) => write!(f, "generic read error"),
-            Tcn75aError::<R, W>::WriteError(_w) => write!(f, "generic write error"),
+            Self::RegPtrError(_w) => write!(f, "error writing register pointer"),
+            Self::ReadError(_r) => write!(f, "generic HAL read error"),
+            Self::WriteError(_w) => write!(f, "generic HAL write error"),
         }
     }
-}
-
-impl<R, W> fmt::Debug for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
-    <R as Read>::Error: fmt::Debug,
-    <W as Write>::Error: fmt::Debug,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Tcn75aError::<R, W>::OutOfRange => write!(fmt, "OutOfRange"),
-            Tcn75aError::<R, W>::LimitError { reason, values } => fmt
-                .debug_struct("LimitError")
-                .field("reason", reason)
-                .field("values", values)
-                .finish(),
-            Tcn75aError::<R, W>::RegPtrError(w) => fmt.debug_tuple("RegPtrError").field(w).finish(),
-            Tcn75aError::<R, W>::ReadError(r) => fmt.debug_tuple("ReadError").field(r).finish(),
-            Tcn75aError::<R, W>::WriteError(w) => fmt.debug_tuple("WriteError").field(w).finish(),
-        }
-    }
-}
-
-// Mainly for tests.
-impl<R, W> PartialEq<Self> for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
-    <R as Read>::Error: PartialEq<<R as Read>::Error>,
-    <W as Write>::Error: PartialEq<<W as Write>::Error>,
-{
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Tcn75aError::<R, W>::OutOfRange, Tcn75aError::<R, W>::OutOfRange) => true,
-            (
-                Tcn75aError::<R, W>::LimitError {
-                    reason: sr,
-                    values: sv,
-                },
-                Tcn75aError::<R, W>::LimitError {
-                    reason: or,
-                    values: ov,
-                },
-            ) => sr == or && sv == ov,
-            (Tcn75aError::<R, W>::RegPtrError(s), Tcn75aError::<R, W>::RegPtrError(o)) => s == o,
-            (Tcn75aError::<R, W>::ReadError(s), Tcn75aError::<R, W>::ReadError(o)) => s == o,
-            (Tcn75aError::<R, W>::WriteError(s), Tcn75aError::<R, W>::WriteError(o)) => s == o,
-            _ => false,
-        }
-    }
-}
-
-impl<R, W> Eq for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
-    Tcn75aError<R, W>: PartialEq<Self>,
-{
-}
-
-impl<R, W> Clone for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
-    <R as Read>::Error: Clone,
-    <W as Write>::Error: Clone,
-{
-    fn clone(&self) -> Self {
-        match self {
-            Tcn75aError::<R, W>::OutOfRange => Tcn75aError::<R, W>::OutOfRange,
-            Tcn75aError::<R, W>::LimitError { reason, values } => Tcn75aError::<R, W>::LimitError {
-                reason: *reason,
-                values: *values,
-            },
-            Tcn75aError::<R, W>::RegPtrError(w) => Tcn75aError::<R, W>::RegPtrError(w.clone()),
-            Tcn75aError::<R, W>::ReadError(r) => Tcn75aError::<R, W>::ReadError(r.clone()),
-            Tcn75aError::<R, W>::WriteError(w) => Tcn75aError::<R, W>::WriteError(w.clone()),
-        }
-    }
-}
-
-impl<R, W> Copy for Tcn75aError<R, W>
-where
-    R: Read,
-    W: Write,
-    <R as Read>::Error: Copy,
-    <W as Write>::Error: Copy,
-{
 }
 
 /** Convenience type for representing [`Tcn75aError`]s where `T` implements both [`Read`]
@@ -237,7 +143,7 @@ and [`Write`].
 [`Read`]: ../embedded_hal/blocking/i2c/trait.Read.html
 [`Write`]: ../embedded_hal/blocking/i2c/trait.Write.html
 */
-pub type Error<T> = Tcn75aError<T, T>;
+pub type Error<T> = Tcn75aError<<T as Read>::Error, <T as Write>::Error>;
 
 impl<T> Tcn75a<T>
 where
@@ -304,8 +210,8 @@ where
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
     # use fixed::types::I8F8;
-    # use tcn75a::{Tcn75a, Tcn75aError};
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # use tcn75a::{Tcn75a, Error};
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     // All subsequent examples should assume tcn is a `Tcn75a`
@@ -424,8 +330,8 @@ where
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
     # use fixed::types::I8F8;
-    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution};
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution};
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     // Assume `tcn` and the controller were _just_ powered on.
@@ -509,8 +415,8 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
-    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution, FaultQueue};
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution, FaultQueue};
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = tcn.config_reg()?; // Let's change some settings!
@@ -587,11 +493,11 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
-    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, CompInt, Limits};
+    # use tcn75a::{Tcn75a, Error, ConfigReg, CompInt, Limits};
     # use fixed::types::I8F8;
     # use fixed_macro::fixed;
     # use std::convert::TryInto;
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
@@ -658,9 +564,9 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
-    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, AlertPolarity, Limits};
+    # use tcn75a::{Tcn75a, Tcn75aError, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();
@@ -767,11 +673,11 @@ where
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
     # use embedded_hal::blocking::i2c::{Read, Write};
-    # use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, AlertPolarity, Limits};
+    # use tcn75a::{Tcn75a, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
     # use fixed::types::I8F8;
     # use fixed_macro::fixed;
-    # fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+    # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     # let mut tcn = Tcn75a::new(i2c, 0x48);
     let mut cfg = ConfigReg::new();

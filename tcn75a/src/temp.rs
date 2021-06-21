@@ -23,8 +23,8 @@ can be used simultaneously with its contained [`I8F8`].
 # if #[cfg(any(target_os = "linux", target_os = "android"))] {
 # use linux_embedded_hal::I2cdev;
 # use embedded_hal::blocking::i2c::{Read, Write};
-# use tcn75a::{Tcn75a, Tcn75aError, ConfigReg, Resolution};
-# fn main() -> Result<(), Tcn75aError<I2cdev, I2cdev>> {
+# use tcn75a::{Tcn75a, Error, ConfigReg, Resolution};
+# fn main() -> Result<(), Error<I2cdev>> {
 # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
 # let mut tcn = Tcn75a::new(i2c, 0x48);
 use fixed::types::I8F8;
