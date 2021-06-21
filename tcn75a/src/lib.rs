@@ -18,6 +18,38 @@ registers (particularly the register pointer and Sensor Configuration Register).
 the `tcn75a` crate therefore _only works on I2C buses with a single controller._ Multi-controller
 operation is possible at the cost of performance, but not implemented.
 
+# Examples
+
+```
+# cfg_if::cfg_if! {
+# if #[cfg(any(target_os = "linux", target_os = "android"))] {
+use eyre::eyre;
+use fixed::types::I8F8;
+use linux_embedded_hal::I2cdev;
+use std::error::Error;
+use tcn75a::{Tcn75a, ConfigReg, Resolution};
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let i2c = I2cdev::new("/dev/i2c-1")?;
+    let mut tcn = Tcn75a::new(i2c, 0x48);
+
+    let mut cfg = ConfigReg::new();
+    cfg.set_resolution(Resolution::Bits12);
+    tcn.set_config_reg(cfg)
+        .map_err(|_e| eyre!("failed to set config reg"))?;
+
+    let temp = tcn.temperature().map_err(|_e| eyre!("failed to read a temperature"))?;
+    println!("Temperature is {:^7} C.", I8F8::from(temp));
+
+    Ok(())
+}
+# } else {
+# fn main() {
+# }
+# }
+# }
+```
+
 [Embedded HAL]: https://github.com/rust-embedded/embedded-hal
 [TCN75A]: https://www.microchip.com/wwwproducts/TCN75A
 [`ConfigReg`]: ./struct.ConfigReg.html
