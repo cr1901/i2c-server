@@ -3,6 +3,12 @@ name = "tcn75a"
 version = "0.1.0"
 authors = ["William D. Jones <thor0505@comcast.net>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cr1901/i2c-server/tree/master/tcn75a"
+description = "Embedded HAL driver for accessing TCN75A temperature sensors"
+categories = ["embedded", "no-std"]
+keywords = ["temperature", "sensor", "tcn75a", "embedded-hal", "hal"]
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
