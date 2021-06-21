@@ -78,8 +78,7 @@ where
 
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Tcn75aError<RE, WE>
-{
+pub enum Tcn75aError<RE, WE> {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero. This _may_ indicate that you are not reading a TCN75A.  */
     OutOfRange,
@@ -119,8 +118,7 @@ pub enum Tcn75aError<RE, WE>
     WriteError(WE),
 }
 
-impl<RE, WE> fmt::Display for Tcn75aError<RE, WE>
-{
+impl<RE, WE> fmt::Display for Tcn75aError<RE, WE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::OutOfRange => write!(f, "temperature reading out of range"),

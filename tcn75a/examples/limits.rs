@@ -88,7 +88,10 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("\nRelease finger from sensor! Waiting to drop below {} C!", temp_lo);
+    println!(
+        "\nRelease finger from sensor! Waiting to drop below {} C!",
+        temp_lo
+    );
 
     loop {
         let temp = tcn
