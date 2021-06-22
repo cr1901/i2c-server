@@ -1,4 +1,7 @@
 # `tcn75a`
+[![crates.io](https://img.shields.io/crates/v/tcn75a.svg)](https://crates.io/crates/tcn75a)
+[![](https://docs.rs/tcn75a/badge.svg)](https://docs.rs/tcn75a/)
+[![Contact Me](https://img.shields.io/twitter/follow/cr1901.svg?label=Contact%20Me&&style=social)](https://twitter.com/cr1901)
 
 `tcn75a` is an [Embedded HAL] crate for accessing [Microchip TCN75A][TCN75A]
 temperature sensors over a (single controller) I2C bus. The TCN75A is a
