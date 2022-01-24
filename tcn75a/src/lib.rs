@@ -114,7 +114,7 @@ where
 pub enum Tcn75aError<RE, WE> {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero. This _may_ indicate that you are not reading a TCN75A.  */
-    OutOfRange,
+    OutOfRange(i16),
     /** The temperature limit registers were read successfully, but the values read were invalid
     (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid,
     and a tuple of `(I8F8, I8F8)`, representing the values which were read; the Hysteresis (Low)
@@ -154,7 +154,7 @@ pub enum Tcn75aError<RE, WE> {
 impl<RE, WE> fmt::Display for Tcn75aError<RE, WE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::OutOfRange => write!(f, "temperature reading out of range"),
+            Self::OutOfRange(_t) => write!(f, "temperature reading out of range"),
             Self::LimitError { reason: _r, values } => write!(
                 f,
                 "limit registers out of range (lo: {}, hi: {})",
@@ -415,7 +415,7 @@ where
         if (raw_temp & 0x000f) == 0 {
             Ok(Temperature(I8F8::from_bits(raw_temp)))
         } else {
-            Err(Tcn75aError::OutOfRange)
+            Err(Tcn75aError::OutOfRange(raw_temp))
         }
     }
 
