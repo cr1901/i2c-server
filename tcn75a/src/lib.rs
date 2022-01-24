@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 use core::convert::TryFrom;
 use core::fmt;
 use core::result::Result;
-use embedded_hal::blocking::i2c::{Read, Write};
+use embedded_hal::i2c::blocking::{Read, Write};
 use fixed::types::I8F8;
 
 mod config;
