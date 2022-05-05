@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 use core::convert::TryFrom;
 use core::fmt;
 use core::result::Result;
-use embedded_hal::i2c::blocking::{Read, Write};
+use embedded_hal::i2c::{ErrorType, blocking::I2c};
 use fixed::types::I8F8;
 
 mod config;
@@ -87,7 +87,7 @@ controller.
 */
 pub struct Tcn75a<T>
 where
-    T: Read + Write,
+    T: I2c,
 {
     ctx: T,
     address: u8,
@@ -97,7 +97,7 @@ where
 
 impl<T> fmt::Debug for Tcn75a<T>
 where
-    T: Read + Write,
+    T: I2c,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Tcn75a")
@@ -111,7 +111,7 @@ where
 
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Tcn75aError<RE, WE> {
+pub enum Tcn75aError<E> {
     /** A temperature value was read successfully, but some bits were set that should always
     read as zero. This _may_ indicate that you are not reading a TCN75A.  */
     OutOfRange(i16),
@@ -134,24 +134,24 @@ pub enum Tcn75aError<RE, WE> {
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
-    RegPtrError(WE),
+    RegPtrError(E),
     /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
     propagated from the [`embedded_hal`] implementation.
 
     [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
-    ReadError(RE),
+    ReadError(E),
     /** Writing the desired register via [`embedded_hal`] failed. Contains a [`Write::Error`],
     propagated from the [`embedded_hal`] implementation.
 
     [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
-    WriteError(WE),
+    WriteError(E),
 }
 
-impl<RE, WE> fmt::Display for Tcn75aError<RE, WE> {
+impl<E> fmt::Display for Tcn75aError<E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::OutOfRange(_t) => write!(f, "temperature reading out of range"),
@@ -174,11 +174,11 @@ and [`Write`].
 [`Read`]: ../embedded_hal/blocking/i2c/trait.Read.html
 [`Write`]: ../embedded_hal/blocking/i2c/trait.Write.html
 */
-pub type Error<T> = Tcn75aError<<T as Read>::Error, <T as Write>::Error>;
+pub type Error<T> = Tcn75aError<<T as ErrorType>::Error>;
 
 impl<T> Tcn75a<T>
 where
-    T: Read + Write,
+    T: I2c,
 {
     /** Initializes all the data required to read and write a TCN75A on an I2C bus.
 
