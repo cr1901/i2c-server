@@ -1,26 +1,27 @@
 use cfg_if::cfg_if;
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal::i2c::{blocking::I2c, ErrorKind, ErrorType};
 
 pub struct UnimplementedHal;
 
-impl Read for UnimplementedHal {
-    type Error = ();
-
-    fn read(&mut self, _address: u8, _buffer: &mut [u8]) -> Result<(), Self::Error> {
-        Err(())
-    }
+impl ErrorType for UnimplementedHal {
+    type Error = ErrorKind;
 }
 
-impl Write for UnimplementedHal {
-    type Error = ();
+impl I2c for UnimplementedHal {
+    fn read(&mut self, _address: u8, _buffer: &mut [u8]) -> Result<(), Self::Error> {
+        Err(ErrorKind::Other)
+    }
 
     fn write(&mut self, _addr: u8, _bytes: &[u8]) -> Result<(), Self::Error> {
-        Err(())
+        Err(ErrorKind::Other)
     }
-}
 
-impl WriteRead for UnimplementedHal {
-    type Error = ();
+    fn write_iter<B>(&mut self, _address: u8, _bytes: B) -> Result<(), Self::Error>
+    where
+        B: IntoIterator<Item = u8>,
+    {
+        Err(ErrorKind::Other)
+    }
 
     fn write_read(
         &mut self,
@@ -28,7 +29,34 @@ impl WriteRead for UnimplementedHal {
         _bytes: &[u8],
         _buffer: &mut [u8],
     ) -> Result<(), Self::Error> {
-        Err(())
+        Err(ErrorKind::Other)
+    }
+
+    fn write_iter_read<B>(
+        &mut self,
+        _address: u8,
+        _bytes: B,
+        _buffer: &mut [u8],
+    ) -> Result<(), Self::Error>
+    where
+        B: IntoIterator<Item = u8>,
+    {
+        Err(ErrorKind::Other)
+    }
+
+    fn transaction<'a>(
+        &mut self,
+        _address: u8,
+        _operations: &mut [embedded_hal::i2c::blocking::Operation<'a>],
+    ) -> Result<(), Self::Error> {
+        Err(ErrorKind::Other)
+    }
+
+    fn transaction_iter<'a, O>(&mut self, _address: u8, _operations: O) -> Result<(), Self::Error>
+    where
+        O: IntoIterator<Item = embedded_hal::i2c::blocking::Operation<'a>>,
+    {
+        Err(ErrorKind::Other)
     }
 }
 

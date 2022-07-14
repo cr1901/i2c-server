@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 [`Resolution`]: ./enum.Resolution.html
 */
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/tcn75a/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/tcn75a/0.2.0-alpha.1")]
 
 use core::convert::TryFrom;
 use core::fmt;
@@ -113,7 +113,8 @@ where
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Tcn75aError<E> {
     /** A temperature value was read successfully, but some bits were set that should always
-    read as zero. This _may_ indicate that you are not reading a TCN75A.  */
+    read as zero. This _may_ indicate that you are not reading a TCN75A. Contains the
+    value read from the bus.  */
     OutOfRange(i16),
     /** The temperature limit registers were read successfully, but the values read were invalid
     (violate the [invariants]). Contains a [`LimitError`] describing why the values are invalid,
@@ -167,12 +168,10 @@ impl<E> fmt::Display for Tcn75aError<E> {
     }
 }
 
-/** Convenience type for representing [`Tcn75aError`]s where `T` implements both [`Read`]
-and [`Write`].
+/** Convenience type for representing [`Tcn75aError`]s where `T` implements [`ErrorType`].
 
 [`Tcn75aError`]: ./enum.Tcn75aError.html
-[`Read`]: ../embedded_hal/blocking/i2c/trait.Read.html
-[`Write`]: ../embedded_hal/blocking/i2c/trait.Write.html
+[`ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
 */
 pub type Error<T> = Tcn75aError<<T as ErrorType>::Error>;
 
@@ -239,7 +238,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -359,7 +358,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -445,7 +444,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution, FaultQueue};
     # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
@@ -523,7 +522,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, CompInt, Limits};
     # use fixed::types::I8F8;
     # use fixed_macro::fixed;
@@ -594,7 +593,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use tcn75a::{Tcn75a, Tcn75aError, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -703,7 +702,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::blocking::i2c::{Read, Write};
+    # use embedded_hal::i2c::blocking::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
     # use fixed::types::I8F8;
@@ -808,15 +807,14 @@ where
 mod tests {
     extern crate std;
     use std::convert::TryInto;
-    use std::io::ErrorKind;
     use std::vec;
 
+    use embedded_hal::i2c::ErrorKind;
     use super::{
         AlertPolarity, ConfigReg, LimitError, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError,
     };
     use embedded_hal_mock::{
-        i2c::{Mock as I2cMock, Transaction as I2cTransaction},
-        MockError,
+        i2c::{Mock as I2cMock, Transaction as I2cTransaction}
     };
     use fixed::types::I8F8;
     use fixed_macro::fixed;
@@ -869,7 +867,7 @@ mod tests {
         let mut tcn = mk_tcn75a(
             &[
                 I2cTransaction::write(0x48, vec![0]),
-                I2cTransaction::write(0x48, vec![1]).with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![1]).with_error(ErrorKind::Other),
                 I2cTransaction::write(0x48, vec![1]),
             ],
             0x48,
@@ -879,7 +877,7 @@ mod tests {
         assert_eq!(tcn.reg, Some(0));
         assert_eq!(
             tcn.set_reg_ptr(1),
-            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other)))
+            Err(Tcn75aError::RegPtrError(ErrorKind::Other))
         );
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.set_reg_ptr(1), Ok(()));
@@ -954,7 +952,7 @@ mod tests {
 
         let temp = tcn.temperature();
         assert!(temp.is_err());
-        assert_eq!(temp.unwrap_err(), Tcn75aError::OutOfRange);
+        assert_eq!(temp.unwrap_err(), Tcn75aError::OutOfRange(-32767));
     }
 
     #[test]
@@ -1036,13 +1034,13 @@ mod tests {
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
                 // Cache value reset on write error.
                 I2cTransaction::write(0x48, vec![1, 0b01100000])
-                    .with_error(MockError::Io(ErrorKind::Other)),
+                    .with_error(ErrorKind::Other),
                 // Dummy write to set reg pointer that dies with error.
-                I2cTransaction::write(0x48, vec![0]).with_error(MockError::Io(ErrorKind::Other)),
+                I2cTransaction::write(0x48, vec![0]).with_error(ErrorKind::Other),
                 // Read error w/ cache set should be impossible for now.
                 I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b10000101])
-                    .with_error(MockError::Io(ErrorKind::Other)),
+                    .with_error(ErrorKind::Other),
                 // Setting the register pointer cache didn't error, so should be skipped.
                 I2cTransaction::read(0x48, vec![0b10000101]),
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
@@ -1056,16 +1054,16 @@ mod tests {
 
         assert_eq!(
             tcn.set_config_reg(cfg1),
-            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
+            Err(Tcn75aError::WriteError(ErrorKind::Other))
         );
         assert_eq!(tcn.cfg, None);
         assert_eq!(
             tcn.set_reg_ptr(0),
-            Err(Tcn75aError::RegPtrError(MockError::Io(ErrorKind::Other)))
+            Err(Tcn75aError::RegPtrError(ErrorKind::Other))
         );
         assert_eq!(
             tcn.config_reg(),
-            Err(Tcn75aError::ReadError(MockError::Io(ErrorKind::Other)))
+            Err(Tcn75aError::ReadError(ErrorKind::Other))
         );
         assert_eq!(tcn.config_reg(), Ok(cfg2));
         assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
@@ -1079,7 +1077,7 @@ mod tests {
                 I2cTransaction::write(0x48, vec![1, 0b10000101]),
                 // Cache value reset on write error.
                 I2cTransaction::write(0x48, vec![1, 0b01100000])
-                    .with_error(MockError::Io(ErrorKind::Other)),
+                    .with_error(ErrorKind::Other),
                 I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b10000101]),
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
@@ -1149,7 +1147,7 @@ mod tests {
             &[
                 I2cTransaction::write(0x48, vec![2, 0x5a, 0x00]),
                 I2cTransaction::write(0x48, vec![3, 0x5f, 0x00])
-                    .with_error(MockError::Io(ErrorKind::Other)),
+                    .with_error(ErrorKind::Other),
                 I2cTransaction::write(0x48, vec![2]),
                 I2cTransaction::read(0x48, vec![0x5a, 0x00]),
                 I2cTransaction::write(0x48, vec![3]),
@@ -1162,7 +1160,7 @@ mod tests {
 
         assert_eq!(
             tcn.set_limits((fixed!(90.0: I8F8), fixed!(95.0: I8F8)).try_into().unwrap()),
-            Err(Tcn75aError::WriteError(MockError::Io(ErrorKind::Other)))
+            Err(Tcn75aError::WriteError(ErrorKind::Other))
         );
         assert_eq!(
             tcn.limits().unwrap().try_into(),

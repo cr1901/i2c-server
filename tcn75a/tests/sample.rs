@@ -1,4 +1,4 @@
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal::i2c::blocking::I2c;
 use fixed::types::I8F8;
 use tcn75a::*;
 
@@ -19,7 +19,7 @@ fn test_sample() {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn sample<T>(mut tcn: Tcn75a<T>)
 where
-    T: Read + Write + WriteRead,
+    T: I2c,
 {
     let mut cfg = ConfigReg::new();
     cfg.set_resolution(Resolution::Bits9);
@@ -50,6 +50,6 @@ where
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 fn unimplemented<T>(_tcn: Tcn75a<T>)
 where
-    T: Read + Write + WriteRead,
+    T: I2c,
 {
 }

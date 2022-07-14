@@ -22,7 +22,7 @@ can be used simultaneously with its contained [`I8F8`].
 # cfg_if::cfg_if! {
 # if #[cfg(any(target_os = "linux", target_os = "android"))] {
 # use linux_embedded_hal::I2cdev;
-# use embedded_hal::blocking::i2c::{Read, Write};
+# use embedded_hal::i2c::blocking::I2c;
 # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution};
 # fn main() -> Result<(), Error<I2cdev>> {
 # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
