@@ -24,7 +24,7 @@ cfg_if! {
             #[argh(positional, from_str_fn(from_base_16))]
             addr: u8,
             #[argh(option, short='n', default = "default_num_samples()", description = "number of samples to take")]
-            num: u64,
+            num: u32,
             #[argh(option, short='r', default = "default_resolution()", from_str_fn(get_resolution), description = "sample resolution")]
             res: Resolution,
             #[argh(option, short='o', description = "out json file")]
@@ -50,7 +50,7 @@ cfg_if! {
             }
         }
 
-        fn default_num_samples() -> u64 {
+        fn default_num_samples() -> u32 {
             100
         }
 
@@ -91,7 +91,7 @@ fn main() -> Result<(), PlotError> {
     let mut points: Vec<(f32, f32)> = Vec::new();
     let mut data: Vec<f32> = Vec::new();
 
-    let bar = ProgressBar::new(args.num);
+    let bar = ProgressBar::new(args.num as u64);
     bar.set_style(ProgressStyle::default_bar().progress_chars("#>-"));
 
     let mut cfg = ConfigReg::new();
@@ -111,14 +111,22 @@ fn main() -> Result<(), PlotError> {
         "Capturing data (1 sample every {} milliseconds)",
         sample_time
     );
-    for i in 0..args.num {
-        let temp = f32::from(I8F8::from(tcn.temperature()?));
-        points.push((i as f32, temp));
-        data.push(temp);
 
-        sleep(Duration::from_millis((sample_time - 1).into())); // ~1 milli for i2c read.
-        bar.inc(1);
-    }
+    (0..args.num)
+        .zip(tcn.iter_mut())
+        .map(|(i, t)| (i as f32, t.map(|t| f32::from(I8F8::from(t)))))
+        .try_for_each(|(i, t)| {
+            let temp = t?;
+
+            points.push((i, temp));
+            data.push(temp);
+
+            sleep(Duration::from_millis((sample_time - 1).into())); // ~1 milli for i2c read.
+            bar.inc(1);
+
+            Ok::<_, PlotError>(())
+        })?;
+
     bar.finish();
 
     println!(
