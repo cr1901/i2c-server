@@ -1,5 +1,5 @@
 use cfg_if::cfg_if;
-use embedded_hal::i2c::{blocking::I2c, ErrorKind, ErrorType};
+use embedded_hal::i2c::{I2c, ErrorKind, ErrorType};
 
 pub struct UnimplementedHal;
 
@@ -16,13 +16,6 @@ impl I2c for UnimplementedHal {
         Err(ErrorKind::Other)
     }
 
-    fn write_iter<B>(&mut self, _address: u8, _bytes: B) -> Result<(), Self::Error>
-    where
-        B: IntoIterator<Item = u8>,
-    {
-        Err(ErrorKind::Other)
-    }
-
     fn write_read(
         &mut self,
         _address: u8,
@@ -32,30 +25,11 @@ impl I2c for UnimplementedHal {
         Err(ErrorKind::Other)
     }
 
-    fn write_iter_read<B>(
-        &mut self,
-        _address: u8,
-        _bytes: B,
-        _buffer: &mut [u8],
-    ) -> Result<(), Self::Error>
-    where
-        B: IntoIterator<Item = u8>,
-    {
-        Err(ErrorKind::Other)
-    }
-
     fn transaction<'a>(
         &mut self,
         _address: u8,
-        _operations: &mut [embedded_hal::i2c::blocking::Operation<'a>],
+        _operations: &mut [embedded_hal::i2c::Operation<'a>],
     ) -> Result<(), Self::Error> {
-        Err(ErrorKind::Other)
-    }
-
-    fn transaction_iter<'a, O>(&mut self, _address: u8, _operations: O) -> Result<(), Self::Error>
-    where
-        O: IntoIterator<Item = embedded_hal::i2c::blocking::Operation<'a>>,
-    {
         Err(ErrorKind::Other)
     }
 }

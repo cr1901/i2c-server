@@ -1,4 +1,4 @@
-use embedded_hal::i2c::blocking::I2c;
+use embedded_hal::i2c::I2c;
 use fixed::types::I8F8;
 use tcn75a::*;
 

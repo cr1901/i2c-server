@@ -32,6 +32,7 @@ cfg_if! {
         }
 
         #[derive(Debug)]
+        #[allow(dead_code)]
         enum PlotError {
             I2c(LinuxI2CError),
             Tcn75a(tcn75a::Error<I2cdev>),
@@ -102,7 +103,7 @@ fn main() -> Result<(), PlotError> {
         Resolution::Bits9 => 30,
         Resolution::Bits10 => 60,
         Resolution::Bits11 => 120,
-        Resolution::Bits12 => 240,
+        Resolution::Bits12 => 30,
     };
     tcn.set_config_reg(cfg)?;
 

@@ -15,9 +15,9 @@ guarantee that the contained data was successfully read from the TCN75A.
 # Examples
 
 To compare, add, subtract, compare, etc temperature measurements from a TCN75A, you should convert
-a [`Temperature`] to a [`I8F8`] type. [`Temperature`] implements [`Copy`], so a [`Temperature`]
-can be used simultaneously with its contained [`I8F8`].
-
+a [`Temperature`] to a [`I8F8`] type or other types implementing [`From<Temperature>`].
+[`Temperature`] implements [`Copy`], so a [`Temperature`] can be used simultaneously with its
+contained [`I8F8`].
 ```
 # cfg_if::cfg_if! {
 # if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -63,5 +63,17 @@ pub struct Temperature(pub(crate) I8F8);
 impl From<Temperature> for I8F8 {
     fn from(temp: Temperature) -> Self {
         temp.0
+    }
+}
+
+impl From<Temperature> for i16 {
+    fn from(temp: Temperature) -> Self {
+        I8F8::from(temp.0).to_bits()
+    }
+}
+
+impl From<Temperature> for f32 {
+    fn from(temp: Temperature) -> Self {
+        I8F8::from(temp.0).into()
     }
 }

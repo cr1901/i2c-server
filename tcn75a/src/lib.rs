@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 use core::convert::TryFrom;
 use core::fmt;
 use core::result::Result;
-use embedded_hal::i2c::{blocking::I2c, ErrorType};
+use embedded_hal::i2c::{I2c, ErrorType};
 use fixed::types::I8F8;
 
 mod config;
@@ -153,24 +153,24 @@ pub enum Tcn75aError<E> {
         values: (I8F8, I8F8),
     },
     /** The register pointer could not be set to _read_ the desired register. Contains the error
-    reason from [`Write::Error`]. For register writes, [`WriteError`] is returned if the register
+    reason from [`i2c::ErrorType`]. For register writes, [`WriteError`] is returned if the register
     pointer failed to update.
 
-    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
+    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
     [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     RegPtrError(E),
-    /** Reading the desired register via [`embedded_hal`] failed. Contains a [`Read::Error`],
+    /** Reading the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`Read::Error`]: ../embedded_hal/blocking/i2c/trait.Read.html#associatedtype.Error
+    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     ReadError(E),
-    /** Writing the desired register via [`embedded_hal`] failed. Contains a [`Write::Error`],
+    /** Writing the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`Write::Error`]: ../embedded_hal/blocking/i2c/trait.Write.html#associatedtype.Error
+    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     WriteError(E),
@@ -192,10 +192,10 @@ impl<E> fmt::Display for Tcn75aError<E> {
     }
 }
 
-/** Convenience type for representing [`Tcn75aError`]s where `T` implements [`ErrorType`].
+/** Convenience type for representing [`Tcn75aError`]s where `T` implements [`i2c::ErrorType`].
 
 [`Tcn75aError`]: ./enum.Tcn75aError.html
-[`ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
+[`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
 */
 pub type Error<T> = Tcn75aError<<T as ErrorType>::Error>;
 
@@ -833,7 +833,7 @@ where
     # }
     ```
 
-    Note that the above example can be done without a for loop while returning the first error:
+    The above example can be done without a for loop while returning the first error:
 
     ```
     # cfg_if::cfg_if! {
@@ -936,7 +936,7 @@ mod tests {
     use super::{
         AlertPolarity, ConfigReg, LimitError, OneShot, Resolution, Shutdown, Tcn75a, Tcn75aError,
     };
-    use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
     use fixed::types::I8F8;
     use fixed_macro::fixed;
 
