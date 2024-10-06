@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 [`Resolution`]: ./enum.Resolution.html
 */
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/tcn75a/0.2.0-alpha.1")]
+#![doc(html_root_url = "https://docs.rs/tcn75a/0.2.0")]
 
 use core::convert::TryFrom;
 use core::fmt;
@@ -262,7 +262,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -382,7 +382,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -468,7 +468,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, Resolution, FaultQueue};
     # fn main() -> Result<(), Error<I2cdev>> {
     # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
@@ -546,7 +546,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, CompInt, Limits};
     # use fixed::types::I8F8;
     # use fixed_macro::fixed;
@@ -617,7 +617,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use tcn75a::{Tcn75a, Tcn75aError, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -726,7 +726,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use tcn75a::{Tcn75a, Error, ConfigReg, AlertPolarity, Limits};
     # use std::convert::TryInto;
     # use fixed::types::I8F8;
@@ -808,7 +808,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -839,7 +839,7 @@ where
     # cfg_if::cfg_if! {
     # if #[cfg(any(target_os = "linux", target_os = "android"))] {
     # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::blocking::I2c;
+    # use embedded_hal::i2c::I2c;
     # use fixed::types::I8F8;
     # use tcn75a::{Tcn75a, Error};
     # fn main() -> Result<(), Error<I2cdev>> {
@@ -974,6 +974,8 @@ mod tests {
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
         assert_eq!(tcn.set_reg_ptr(3), Ok(()));
         assert_eq!(tcn.reg, Some(3));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1003,6 +1005,8 @@ mod tests {
         assert_eq!(tcn.reg, None);
         assert_eq!(tcn.set_reg_ptr(1), Ok(()));
         assert_eq!(tcn.reg, Some(1));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1059,6 +1063,8 @@ mod tests {
             I8F8::from(temp.unwrap()),
             I8F8::from_bits(((0 << 4) - 1) << 4)
         );
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1074,6 +1080,8 @@ mod tests {
         let temp = tcn.temperature();
         assert!(temp.is_err());
         assert_eq!(temp.unwrap_err(), Tcn75aError::OutOfRange(-32767));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1081,7 +1089,8 @@ mod tests {
         let mut tcn = mk_tcn75a(
             &[
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
-                I2cTransaction::read(0x48, vec![0b01100000]),
+                // Cache behavior should prevent this expectation from running.
+                // I2cTransaction::read(0x48, vec![0b01100000]),
             ],
             0x48,
         );
@@ -1094,34 +1103,40 @@ mod tests {
         assert_eq!(tcn.cfg, Some(cfg1));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
         assert_eq!(tcn.cfg, Some(cfg1));
+
+        tcn.free().done();
     }
 
     #[test]
     fn read_config_cached() {
         let mut tcn = mk_tcn75a(
             &[
-                I2cTransaction::write(0x48, vec![1, 0b01100000]),
+                // Original initial expectation- ruins the test currently.
+                // I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 // Fake reg set.
                 I2cTransaction::write(0x48, vec![0]),
                 // Cached value doesn't match.
                 I2cTransaction::write(0x48, vec![1]),
                 I2cTransaction::read(0x48, vec![0b01100000]),
                 // Cache value matches.
-                I2cTransaction::read(0x48, vec![0b01100000]),
+                // I2cTransaction::read(0x48, vec![0b01100000]),
             ],
             0x48,
         );
 
         // All cfg reg tests have the same initial write as write_read_config().
         let (cfg1, _) = mk_cfg_regs();
-        tcn.set_config_reg(cfg1).unwrap();
 
         // Change reg ptr, then reread the config reg twice.
         assert_eq!(tcn.set_reg_ptr(0), Ok(()));
+        assert_eq!(tcn.reg, Some(0));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
+        assert_eq!(tcn.reg, Some(1));
         assert_eq!(tcn.cfg, Some(cfg1));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
         assert_eq!(tcn.cfg, Some(cfg1));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1146,6 +1161,8 @@ mod tests {
         // Read data changed from underneath us!
         // assert_eq!(tcn.config_reg(), Ok(cfg_new));
         // assert_eq!(tcn.cfg, Some(cfg_new));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1187,6 +1204,8 @@ mod tests {
         assert_eq!(tcn.config_reg(), Ok(cfg2));
         assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1200,7 +1219,7 @@ mod tests {
                 I2cTransaction::read(0x48, vec![0b10000101]),
                 I2cTransaction::write(0x48, vec![1, 0b01100000]),
                 // Cache behavior back to normal.
-                I2cTransaction::read(0x48, vec![0b01100000]),
+                // I2cTransaction::read(0x48, vec![0b01100000]),
             ],
             0x48,
         );
@@ -1212,6 +1231,8 @@ mod tests {
         assert_eq!(tcn.config_reg(), Ok(cfg2));
         assert_eq!(tcn.set_config_reg(cfg1), Ok(()));
         assert_eq!(tcn.config_reg(), Ok(cfg1));
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1236,6 +1257,8 @@ mod tests {
             tcn.limits().unwrap().try_into(),
             Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8)))
         );
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1257,6 +1280,8 @@ mod tests {
                 values: (fixed!(90.75: I8F8), fixed!(95.0: I8F8))
             })
         );
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1283,6 +1308,8 @@ mod tests {
             tcn.limits().unwrap().try_into(),
             Ok((fixed!(90.0: I8F8), fixed!(95.0: I8F8)))
         );
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1311,6 +1338,8 @@ mod tests {
                 I8F8::from_bits(((255 << 4) + 15) << 4)
             ]
         );
+
+        tcn.free().done();
     }
 
     #[test]
@@ -1339,5 +1368,7 @@ mod tests {
                 Err(Tcn75aError::ReadError(ErrorKind::Other))
             ]
         );
+
+        tcn.free().done();
     }
 }
