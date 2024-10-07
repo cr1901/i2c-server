@@ -15,6 +15,7 @@ cfg_if! {
         use std::io::Write;
         use std::error::Error as ErrorTrait;
         use std::convert::TryInto;
+        use std::iter;
 
         #[derive(FromArgs)]
         #[argh(description = "plot tcn75a data")]
@@ -103,7 +104,7 @@ fn main() -> Result<(), PlotError> {
         Resolution::Bits9 => 30,
         Resolution::Bits10 => 60,
         Resolution::Bits11 => 120,
-        Resolution::Bits12 => 30,
+        Resolution::Bits12 => 240,
     };
     tcn.set_config_reg(cfg)?;
 
@@ -114,7 +115,7 @@ fn main() -> Result<(), PlotError> {
     );
 
     (0..args.num)
-        .zip(tcn.iter_mut())
+        .zip(iter::repeat_with(|| tcn.temperature()))
         .map(|(i, t)| (i as f32, t.map(|t| f32::from(I8F8::from(t)))))
         .try_for_each(|(i, t)| {
             let temp = t?;

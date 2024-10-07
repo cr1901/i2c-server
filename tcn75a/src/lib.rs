@@ -109,30 +109,6 @@ where
     }
 }
 
-/** An iterator for reading the temperature from a TCN75A.
-
-This struct is created by [`Tcn75a::iter_mut`]. See its documentation for more.
-
-[`Tcn75a::iter_mut`]: ./struct.Tcn75a.html#method.iter_mut
-*/
-pub struct IterMut<'a, T>
-where
-    T: I2c,
-{
-    inner: &'a mut Tcn75a<T>,
-}
-
-impl<'a, T> Iterator for IterMut<'a, T>
-where
-    T: I2c,
-{
-    type Item = Result<Temperature, Error<T>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.inner.temperature())
-    }
-}
-
 /// Enum for describing possible error conditions when reading/writing a TCN75A temperature sensor.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Tcn75aError<E> {
@@ -153,24 +129,24 @@ pub enum Tcn75aError<E> {
         values: (I8F8, I8F8),
     },
     /** The register pointer could not be set to _read_ the desired register. Contains the error
-    reason from [`i2c::ErrorType`]. For register writes, [`WriteError`] is returned if the register
+    reason from [`i2c::ErrorType::Error`]. For register writes, [`WriteError`] is returned if the register
     pointer failed to update.
 
-    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
+    [`i2c::ErrorType::Error`]: ../embedded_hal/i2c/trait.ErrorType.html#associatedtype.Error
     [`WriteError`]: ./enum.Tcn75aError.html#variant.WriteError
     */
     RegPtrError(E),
-    /** Reading the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType`],
+    /** Reading the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType::Error`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
+    [`i2c::ErrorType::Error`]: ../embedded_hal/i2c/trait.ErrorType.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     ReadError(E),
-    /** Writing the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType`],
+    /** Writing the desired register via [`embedded_hal`] failed. Contains a [`i2c::ErrorType::Error`],
     propagated from the [`embedded_hal`] implementation.
 
-    [`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
+    [`i2c::ErrorType::Error`]: ../embedded_hal/i2c/trait.ErrorType.html#associatedtype.Error
     [`embedded_hal`]: ../embedded_hal/index.html
     */
     WriteError(E),
@@ -192,10 +168,10 @@ impl<E> fmt::Display for Tcn75aError<E> {
     }
 }
 
-/** Convenience type for representing [`Tcn75aError`]s where `T` implements [`i2c::ErrorType`].
+/** Convenience type for representing [`Tcn75aError`]s where `T` implements [`i2c::ErrorType::Error`].
 
 [`Tcn75aError`]: ./enum.Tcn75aError.html
-[`i2c::ErrorType`]: ../embedded_hal/i2c/trait.ErrorType.html
+[`i2c::ErrorType::Error`]: ../embedded_hal/i2c/trait.ErrorType.html#associatedtype.Error
 */
 pub type Error<T> = Tcn75aError<<T as ErrorType>::Error>;
 
@@ -233,7 +209,7 @@ where
     # }
     ```
 
-    [I2C traits]: ../embedded_hal/blocking/i2c/index.html#traits
+    [I2C traits]: ../embedded_hal/i2c/index.html#traits
     [`embedded_hal`]: ../embedded_hal
     */
     pub fn new(ctx: T, address: u8) -> Self {
@@ -347,7 +323,7 @@ where
         <thead>
             <tr><th><a href="./enum.Resolution.html"><code>Resolution</code></a></th><th>Temp (C)</th><th>Bit Representation</th></tr>
         </thead>
-        </tbody>
+        <tbody>
             <tr>
                 <td><a href="enum.Resolution.html#variant.Bits9"><code>Bits9</code></a></td>
                 <td>30.5</td>
@@ -401,6 +377,85 @@ where
     # }
     ```
 
+    To iterate over temperature values in a loop, you can use
+    [`iter::repeat_with`] or iterate manually, as [above]:
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::i2c::I2c;
+    # use fixed::types::I8F8;
+    # use tcn75a::{Tcn75a, Error};
+    # fn main() -> Result<(), Error<I2cdev>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    # let mut tcn = Tcn75a::new(i2c, 0x48);
+    use std::iter;
+
+    // Assume `tcn` and the controller were _just_ powered on.
+    // 9-bit resolution (0.5 degrees).
+
+    let mut temps = Vec::new();
+    for t in iter::repeat_with(|| tcn.temperature()).take(5) {
+        temps.push(f32::from(I8F8::from(t?)))
+    }
+
+    // Assume we are doing something more with the temps vec than printing it.
+    println!("Five temperature readings (debug display): {:?}", temps);
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
+    Iteration can also be done without a for loop while [returning the first
+    error], such as below.
+
+    When sharing a [`Tcn75a`] struct between threads or interrupt contexts, you
+    avoid blocking other threads and contexts while iterating by wrapping
+    the [`temperature`] call inside a [`critical_section::with`]!
+
+    ```
+    # cfg_if::cfg_if! {
+    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
+    # use linux_embedded_hal::I2cdev;
+    # use embedded_hal::i2c::I2c;
+    # use fixed::types::I8F8;
+    # use tcn75a::{Tcn75a, Error};
+    # use critical_section;
+    # fn main() -> Result<(), Error<I2cdev>> {
+    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
+    use std::iter;
+    use core::cell::RefCell;
+    use critical_section::{self, Mutex};
+
+    let mut tcn = Mutex::new(RefCell::new(Tcn75a::new(i2c, 0x48)));
+
+    // Assume `tcn` and the controller were _just_ powered on.
+    // 9-bit resolution (0.5 degrees).
+
+    let temps : Vec<f32> =
+        iter::repeat_with(|| {
+                critical_section::with(|cs| tcn.borrow_ref_mut(cs).temperature())
+            })
+            .take(5)
+            .map(|r| r.map(|t| f32::from(I8F8::from(t))))
+            .collect::<Result<Vec<_>, _>>()?;
+
+    // Assume we are doing something more with the temps vec than printing them.
+    println!("Five temperature readings (debug display): {:?}", temps);
+    # Ok(())
+    # }
+    # } else {
+    # fn main() {
+    # }
+    # }
+    # }
+    ```
+
     # Errors
 
     * [`Tcn75aError::RegPtrError`]: Returned if the I2C write to set the register pointer failed.
@@ -421,6 +476,11 @@ where
     [`Tcn75aError::ReadError`]: ./enum.Tcn75aError.html#variant.ReadError
     [`Tcn75aError::OutOfRange`]: ./enum.Tcn75aError.html#variant.OutOfRange
     [`Resolution::Bits9`]: ./enum.Resolution.html#variant.Bits9
+    [`iter::repeat_with`]: https://doc.rust-lang.org/core/iter/fn.repeat_with.html
+    [above]: ./struct.Tcn75a.html#examples-1
+    [returning the first error]: https://doc.rust-lang.org/core/iter/trait.Iterator.html#examples-30
+    [`Tcn75a`]: ./struct.Tcn75a.html
+    [`critical_section::with`]: https://docs.rs/critical-section/1.1.3/critical_section/fn.with.html
     */
     pub fn temperature(&mut self) -> Result<Temperature, Error<T>> {
         let mut temp: [u8; 2] = [0u8; 2];
@@ -788,103 +848,6 @@ where
         Ok(())
     }
 
-    /** Creates a mutable iterator which returns temperature readings from an attached TCN75A.
-
-    Each iteration does a single I2C read transaction to read the Ambient Temperature Register.
-    If the register pointer was not set to 0, a _single_ I2C write transaction will set the
-    register pointer before any reads.
-
-    This iterator is infinite; use e.g. the [`take`] or [`zip`] methods to convert it to a finite
-    iterator. When a finite version of this iterator is exhausted, the register pointer cache will
-    point to register 0, unless [`Tcn75aError::RegPtrError`] was returned. The sensor config cache
-    is untouched.
-
-    The iterator must be mutable because of the requirements of the [`I2c`] trait; returned
-    [`Result`] elements do not contain any lifetimes.
-
-    # Examples
-
-    ```
-    # cfg_if::cfg_if! {
-    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
-    # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::I2c;
-    # use fixed::types::I8F8;
-    # use tcn75a::{Tcn75a, Error};
-    # fn main() -> Result<(), Error<I2cdev>> {
-    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
-    # let mut tcn = Tcn75a::new(i2c, 0x48);
-    // Assume `tcn` and the controller were _just_ powered on.
-    // 9-bit resolution (0.5 degrees).
-
-    let mut temps = Vec::new();
-    for t in tcn.iter_mut().take(5) {
-        temps.push(f32::from(I8F8::from(t?)))
-    }
-
-    // Assume we are doing something more with the temps vec than printing it.
-    println!("Five temperature readings (debug display): {:?}", temps);
-    # Ok(())
-    # }
-    # } else {
-    # fn main() {
-    # }
-    # }
-    # }
-    ```
-
-    The above example can be done without a for loop while returning the first error:
-
-    ```
-    # cfg_if::cfg_if! {
-    # if #[cfg(any(target_os = "linux", target_os = "android"))] {
-    # use linux_embedded_hal::I2cdev;
-    # use embedded_hal::i2c::I2c;
-    # use fixed::types::I8F8;
-    # use tcn75a::{Tcn75a, Error};
-    # fn main() -> Result<(), Error<I2cdev>> {
-    # let i2c = I2cdev::new("/dev/i2c-1").unwrap();
-    # let mut tcn = Tcn75a::new(i2c, 0x48);
-    // Assume `tcn` and the controller were _just_ powered on.
-    // 9-bit resolution (0.5 degrees).
-
-    let temps : Vec<f32> =
-        tcn.iter_mut()
-            .take(5)
-            .map(|r| r.map(|t| f32::from(I8F8::from(t))))
-            .collect::<Result<Vec<_>, _>>()?;
-
-    // Assume we are doing something more with the temps vec than printing them.
-    println!("Five temperature readings (debug display): {:?}", temps);
-    # Ok(())
-    # }
-    # } else {
-    # fn main() {
-    # }
-    # }
-    # }
-    ```
-
-    # Errors
-
-    [`IterMut`]'s element type is a [`Result`] to indicate that getting a temperature reading from
-    a TCN75A may fail. Specifically, this iterator propogates any errors returned by the
-    [`set_reg_ptr`] or [`temperature`] methods.
-
-    [`I2c`]: ../embedded_hal/i2c/blocking/trait.I2c.html
-    [`IterMut`]: ./struct.IterMut.html
-    [`Result`]: https://doc.rust-lang.org/core/result/enum.Result.html
-    [`set_reg_ptr`]: ./struct.Tcn75a.html#method.set_reg_ptr
-    [`take`]: https://doc.rust-lang.org/core/iter/trait.Iterator.html#method.take
-    [`Tcn75aError::RegPtrError`]: ./enum.Tcn75aError.html#variant.RegPtrError
-    [`temperature`]: ./struct.Tcn75a.html#method.temperature
-    [`zip`]: https://doc.rust-lang.org/core/iter/trait.Iterator.html#method.zip
-
-    */
-    pub fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
-        IterMut { inner: self }
-    }
-
     /** Release the resources used to perform TCN75A transactions.
 
     No I2C transactions occur in this function. The wrapped [`embedded_hal`] instance is
@@ -917,7 +880,7 @@ where
     ```
 
     [`embedded_hal`]: ../embedded_hal
-    [`Tcn75a::new`]: ../struct.Tcn75a.html#method.new
+    [`Tcn75a::new`]: ./struct.Tcn75a.html#method.new
     */
     pub fn free(self) -> T {
         self.ctx
@@ -929,6 +892,7 @@ mod tests {
     extern crate std;
     use std::convert::TryInto;
     use std::vec;
+    use std::iter;
 
     use crate::Temperature;
     use embedded_hal::i2c::ErrorKind;
@@ -1326,7 +1290,7 @@ mod tests {
             0x48,
         );
 
-        let temps: Result<vec::Vec<Temperature>, Tcn75aError<_>> = tcn.iter_mut().take(3).collect();
+        let temps: Result<vec::Vec<Temperature>, Tcn75aError<_>> = iter::repeat_with(|| tcn.temperature()).take(3).collect();
         assert!(temps.is_ok());
 
         let temps: vec::Vec<I8F8> = temps.unwrap().into_iter().map(I8F8::from).collect();
@@ -1354,8 +1318,7 @@ mod tests {
             0x48,
         );
 
-        let readings = tcn
-            .iter_mut()
+        let readings = iter::repeat_with(|| tcn.temperature())
             .take(3)
             .map(|r| r.map(I8F8::from))
             .collect::<vec::Vec<Result<I8F8, Tcn75aError<_>>>>();

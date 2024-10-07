@@ -17,15 +17,15 @@ embedded-hal = "1.0.0"
 modular-bitfield = "0.11.0"
 fixed = "1.6.0"
 fixed-macro = "1.1"
-embedded-hal-mock = { version = "0.11.0", default-features = false, features = ["eh1"] }
 
 [dev-dependencies]
-embedded-hal-mock = "0.11.0"
+embedded-hal-mock = { version = "0.11.0", default-features = false, features = ["eh1"] }
 cfg-if = "0.1.10"
 version-sync = "0.9"
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dev-dependencies]
 linux-embedded-hal = { version = "0.4.0", default-features = false, features = ["i2c"] }
+critical-section = { version = "1.1.3", default-features = false, features = ["std"] }
 crossterm = "0.19.0"
 textplots = "0.5.3"
 argh = "0.1.3"
