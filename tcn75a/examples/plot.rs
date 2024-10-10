@@ -1,5 +1,6 @@
 use cfg_if::cfg_if;
-use fixed::types::I8F8;
+use fixed::types::{I8F8, I1F15, I8F24};
+use fixed_macro::fixed;
 
 cfg_if! {
     if #[cfg(any(target_os = "linux", target_os = "android"))] {
@@ -114,14 +115,51 @@ fn main() -> Result<(), PlotError> {
         sample_time
     );
 
+    let mut prev_ewma: Option<I8F24> = None;
+
+    const EXP_DECAY_30: I1F15 = fixed_macro::fixed!(0.970445: I1F15); // e^(-30.0ms / 1000.0ms)
+    const EXP_DECAY_60: I1F15 = fixed_macro::fixed!(0.941764: I1F15); // e^(-60.0ms / 1000.0ms)
+    const EXP_DECAY_120: I1F15 = fixed_macro::fixed!(0.886920: I1F15); // e^(-120.0ms / 1000.0ms)
+    const EXP_DECAY_240: I1F15 = fixed_macro::fixed!(0.786627: I1F15); // e^(-240.0ms / 1000.0ms)
+
+    let decay = match sample_time {
+        30 => EXP_DECAY_30,
+        60 => EXP_DECAY_60,
+        120 => EXP_DECAY_120,
+        240 => EXP_DECAY_240,
+        _ => unreachable!()
+    };
+
     (0..args.num)
         .zip(iter::repeat_with(|| tcn.temperature()))
-        .map(|(i, t)| (i as f32, t.map(|t| f32::from(I8F8::from(t)))))
+        .map(|(i, t)| (i as f32, t.map(|t| I8F8::from(t))))
         .try_for_each(|(i, t)| {
+            // https://en.wikipedia.org/wiki/Exponential_smoothing#Basic_(simple)_exponential_smoothing
+            // Intermediate fixed width chosen through trial and error, looking at
+            // the Linux load code as an example: https://en.wikipedia.org/wiki/Load_(computing)#Reckoning_CPU_load
             let temp = t?;
+            let smooth_temp: I8F24;
 
-            points.push((i, temp));
-            data.push(temp);
+            let alpha = I1F15::from_num(fixed!(1.0: I8F24) - I8F24::from_num(decay));
+
+            match prev_ewma {
+                Some(prev) => {
+                    let temp_part = I8F24::from_num(alpha) * I8F24::from_num(temp);
+                    let prev_part = I8F24::from_num(prev) * I8F24::from_num(decay);
+
+                    smooth_temp = I8F24::from_num(temp_part + prev_part);
+                    prev_ewma = Some(smooth_temp);
+                }
+                None => {
+                    prev_ewma = Some(I8F24::from_num(temp));
+                    smooth_temp = I8F24::from_num(temp);
+                }
+            }
+
+            /* Simulate sending out 16 bit data points, even though our plot
+            function accepts f32. */
+            points.push((i as f32, f32::from(I8F8::from_num(smooth_temp))));
+            data.push(f32::from(temp));
 
             sleep(Duration::from_millis((sample_time - 1).into())); // ~1 milli for i2c read.
             bar.inc(1);
